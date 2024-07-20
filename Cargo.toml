@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-winit = "0.30.3"
-tracing = "0.1.40"
-wgpu = "0.20.1"
+bytemuck = { version = "1.16", features = ["derive"] }
+env_logger = "0.11"
+log = "0.4"
+nanorand = { version = "0.7", default-features = false, features = ["wyrand"] }
+pollster = "0.3"
+wgpu = "22.0.0"
+winit = "0.29"
