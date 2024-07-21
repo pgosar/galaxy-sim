@@ -2,6 +2,7 @@ use crate::camera::{Camera, CameraController, CameraUniform};
 use crate::render::Render;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
+use wgpu::MemoryHints;
 use winit::{
   dpi::PhysicalSize,
   event::{ElementState, Event, KeyEvent, StartCause, WindowEvent},
@@ -76,12 +77,6 @@ impl SurfaceWrapper {
   }
 }
 
-// ============================================================================
-// camera stuff
-// ============================================================================
-
-// end camera stuff
-
 struct State {
   instance: wgpu::Instance,
   adapter: wgpu::Adapter,
@@ -130,7 +125,7 @@ impl State {
           label: None,
           required_features: wgpu::Features::empty(),
           required_limits: wgpu::Limits::default(),
-          memory_hints: Default::default(),
+          memory_hints: MemoryHints::default(),
         },
         None,
       )
@@ -138,18 +133,15 @@ impl State {
       .unwrap();
     let camera = Camera {
       // position the camera 1 unit up and 2 units back
-      // +z is out of the screen
       eye: (0.0, 1.0, 2.0).into(),
-      // have it look at the origin
       target: (0.0, 0.0, 0.0).into(),
-      // which way is "up"
       up: cgmath::Vector3::unit_y(),
       aspect: size.width as f32 / size.height as f32,
       fovy: 45.0,
       znear: 0.1,
       zfar: 100.0,
     };
-    let mut camera_uniform = CameraUniform::new();
+    let mut camera_uniform = CameraUniform::init();
     camera_uniform.update_view_proj(&camera);
 
     let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -204,6 +196,7 @@ async fn start() {
   let event_loop_function = EventLoop::run;
   let mut example = None;
 
+  // main runner
   let _ = (event_loop_function)(
     window_loop.event_loop,
     move |event, target: &EventLoopWindowTarget<()>| match event {
@@ -223,18 +216,25 @@ async fn start() {
         surface.suspend();
       }
       Event::WindowEvent { event, window_id } if window_id == window_loop.window.id() => {
-        if !context.input(&event) {
-          match event {
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-              event:
-                KeyEvent {
-                  state: ElementState::Pressed,
-                  physical_key: PhysicalKey::Code(KeyCode::Escape),
-                  ..
-                },
+        // need to save whether escape key was sent before it is consumed by input()
+        let mut exit_requested = false;
+        if let WindowEvent::KeyboardInput {
+          event:
+            KeyEvent {
+              state: ElementState::Pressed,
+              physical_key: PhysicalKey::Code(KeyCode::Escape),
               ..
-            } => target.exit(),
+            },
+          ..
+        } = event
+        {
+          exit_requested = true;
+        }
+        if exit_requested {
+          target.exit();
+        } else if !context.input(&event) {
+          match event {
+            WindowEvent::CloseRequested => target.exit(),
             WindowEvent::RedrawRequested => {
               window_loop.window.request_redraw();
               if example.is_none() {
@@ -247,6 +247,7 @@ async fn start() {
                   format: Some(surface.config().view_formats[0]),
                   ..wgpu::TextureViewDescriptor::default()
                 });
+                // start rendering
                 example.render(
                   &view,
                   &context.device,

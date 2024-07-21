@@ -1,7 +1,7 @@
 use crate::state::run;
 use nanorand::{Rng, WyRand};
 use std::{borrow::Cow, mem};
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 const NUM_PARTICLES: u32 = 1500;
 const PARTICLES_PER_GROUP: u32 = 64;
 
@@ -16,10 +16,7 @@ pub struct Render {
 }
 
 impl Render {
-  pub fn required_limits() -> wgpu::Limits {
-    wgpu::Limits::downlevel_defaults()
-  }
-
+  #[must_use]
   pub fn init(
     config: &wgpu::SurfaceConfiguration,
     _adapter: &wgpu::Adapter,
@@ -76,7 +73,7 @@ impl Render {
             ty: wgpu::BindingType::Buffer {
               ty: wgpu::BufferBindingType::Storage { read_only: true },
               has_dynamic_offset: false,
-              min_binding_size: wgpu::BufferSize::new((NUM_PARTICLES * 16) as _),
+              min_binding_size: wgpu::BufferSize::new((u64::from(NUM_PARTICLES) * 16) as _),
             },
             count: None,
           },
@@ -86,7 +83,7 @@ impl Render {
             ty: wgpu::BindingType::Buffer {
               ty: wgpu::BufferBindingType::Storage { read_only: false },
               has_dynamic_offset: false,
-              min_binding_size: wgpu::BufferSize::new((NUM_PARTICLES * 16) as _),
+              min_binding_size: wgpu::BufferSize::new((u64::from(NUM_PARTICLES) * 16) as _),
             },
             count: None,
           },
@@ -103,7 +100,7 @@ impl Render {
       layout: Some(&compute_pipeline_layout),
       module: &compute_shader,
       entry_point: "main",
-      compilation_options: Default::default(),
+      compilation_options: PipelineCompilationOptions::default(),
       cache: None,
     });
 
@@ -123,7 +120,7 @@ impl Render {
       vertex: wgpu::VertexState {
         module: &draw_shader,
         entry_point: "main_vs",
-        compilation_options: Default::default(),
+        compilation_options: PipelineCompilationOptions::default(),
         buffers: &[
           wgpu::VertexBufferLayout {
             array_stride: 6 * 4,
@@ -140,7 +137,7 @@ impl Render {
       fragment: Some(wgpu::FragmentState {
         module: &draw_shader,
         entry_point: "main_fs",
-        compilation_options: Default::default(),
+        compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(config.view_formats[0].into())],
       }),
       primitive: wgpu::PrimitiveState::default(),

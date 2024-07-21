@@ -2,4 +2,4 @@
 
 Built with Rust and WGPU
 
-Supersedes the older project
+A far better version of original I made
