@@ -50,6 +50,11 @@ impl Render {
       contents: bytemuck::cast_slice(&sim_param_data),
       usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
+
+    // ========================================================================
+    // compute pipeline stuff
+    // ========================================================================
+
     let compute_bind_group_layout =
       device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
@@ -93,6 +98,19 @@ impl Render {
       bind_group_layouts: &[&compute_bind_group_layout],
       push_constant_ranges: &[],
     });
+    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+      label: Some("Compute pipeline"),
+      layout: Some(&compute_pipeline_layout),
+      module: &compute_shader,
+      entry_point: "main",
+      compilation_options: Default::default(),
+      cache: None,
+    });
+
+    // ========================================================================
+    // render pipeline stuff
+    // ========================================================================
+
     let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: Some("render"),
       bind_group_layouts: &[camera_bind_group_layout],
@@ -131,14 +149,8 @@ impl Render {
       multiview: None,
       cache: None,
     });
-    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-      label: Some("Compute pipeline"),
-      layout: Some(&compute_pipeline_layout),
-      module: &compute_shader,
-      entry_point: "main",
-      compilation_options: Default::default(),
-      cache: None,
-    });
+
+    // triangle sizes
     let vertex_buffer_data = [
       -0.01f32, -0.02, 0.0, // First vertex
       0.01, -0.02, 0.0, // Second vertex
@@ -152,6 +164,7 @@ impl Render {
     let mut initial_particle_data = vec![0.0f32; (6 * NUM_PARTICLES) as usize];
     let mut rng = WyRand::new_seed(42);
     let mut unif = || rng.generate::<f32>() * 2f32 - 1f32;
+    // randomly generate initial positions and velocities for each particle
     for particle_instance_chunk in initial_particle_data.chunks_mut(6) {
       particle_instance_chunk[0] = unif(); // posx
       particle_instance_chunk[1] = unif(); // posy
@@ -229,7 +242,7 @@ impl Render {
     };
     let mut command_encoder =
       device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
+    // compute pass
     {
       let mut cpass = command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: None,
@@ -239,6 +252,7 @@ impl Render {
       cpass.set_bind_group(0, &self.particle_bind_groups[self.frame_num % 2], &[]);
       cpass.dispatch_workgroups(self.work_group_count, 1, 1);
     }
+    // render pass
     {
       let mut rpass = command_encoder.begin_render_pass(&render_pass_descriptor);
       rpass.set_pipeline(&self.render_pipeline);
