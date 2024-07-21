@@ -1,14 +1,11 @@
+use crate::render::*;
 use std::sync::Arc;
-
-use crate::boids::*;
-use wgpu::Surface;
 use winit::{
   event::{Event, KeyEvent, StartCause, WindowEvent},
   event_loop::{EventLoop, EventLoopWindowTarget},
   keyboard::{Key, NamedKey},
   window::Window,
 };
-
 struct EventLoopWrapper {
   event_loop: EventLoop<()>,
   window: Arc<Window>,
@@ -18,7 +15,7 @@ impl EventLoopWrapper {
   pub fn new(title: &str) -> Self {
     let event_loop = EventLoop::new().unwrap();
     let mut builder = winit::window::WindowBuilder::new();
-    builder = builder.with_title(title);
+    builder = builder.with_title(title).with_resizable(false);
     let window = Arc::new(builder.build(&event_loop).unwrap());
 
     Self { event_loop, window }
@@ -38,11 +35,7 @@ impl SurfaceWrapper {
     }
   }
 
-  fn start_condition(e: &Event<()>) -> bool {
-    matches!(e, Event::NewEvents(StartCause::Init))
-  }
-
-  fn resume(&mut self, context: &ExampleContext, window: Arc<Window>) {
+  fn resume(&mut self, context: &State, window: Arc<Window>) {
     let window_size = window.inner_size();
     let width = window_size.width.max(1);
     let height = window_size.height.max(1);
@@ -50,93 +43,70 @@ impl SurfaceWrapper {
     let surface = self.surface.as_ref().unwrap();
     let mut config = surface
       .get_default_config(&context.adapter, width, height)
-      .expect("Surface isn't supported by the adapter.");
+      .unwrap();
     let view_format = config.format.add_srgb_suffix();
     config.view_formats.push(view_format);
     surface.configure(&context.device, &config);
     self.config = Some(config);
   }
 
-  fn acquire(&mut self, context: &ExampleContext) -> wgpu::SurfaceTexture {
+  fn acquire(&mut self, context: &State) -> wgpu::SurfaceTexture {
     let surface = self.surface.as_ref().unwrap();
 
     match surface.get_current_texture() {
       Ok(frame) => frame,
-      Err(wgpu::SurfaceError::Timeout) => surface
-        .get_current_texture()
-        .expect("Failed to acquire next surface texture!"),
+      Err(wgpu::SurfaceError::Timeout) => surface.get_current_texture().unwrap(),
       Err(
         wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost | wgpu::SurfaceError::OutOfMemory,
       ) => {
         surface.configure(&context.device, self.config());
-        surface
-          .get_current_texture()
-          .expect("Failed to acquire next surface texture!")
+        surface.get_current_texture().unwrap()
       }
     }
   }
 
   fn suspend(&mut self) {}
 
-  fn get(&self) -> Option<&Surface> {
-    self.surface.as_ref()
-  }
-
   fn config(&self) -> &wgpu::SurfaceConfiguration {
     self.config.as_ref().unwrap()
   }
 }
 
-struct ExampleContext {
+struct State {
   instance: wgpu::Instance,
   adapter: wgpu::Adapter,
   device: wgpu::Device,
   queue: wgpu::Queue,
 }
-impl ExampleContext {
-  async fn init_async(surface: &mut SurfaceWrapper) -> Self {
-    log::info!("Initializing wgpu...");
-
-    let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
-    let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-    let gles_minor_version = wgpu::util::gles_minor_version_from_env().unwrap_or_default();
-
+impl State {
+  async fn init_async(surface: &SurfaceWrapper) -> Self {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-      backends,
-      flags: wgpu::InstanceFlags::from_build_config().with_env(),
-      dx12_shader_compiler,
-      gles_minor_version,
+      #[cfg(not(target_arch = "wasm32"))]
+      backends: wgpu::Backends::PRIMARY,
+      ..Default::default()
     });
-    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, surface.get())
+
+    let adapter = instance
+      .request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::default(),
+        compatible_surface: surface.surface.as_ref(),
+        force_fallback_adapter: false,
+      })
       .await
-      .expect("No suitable GPU adapters found on the system!");
+      .unwrap();
 
-    let adapter_info = adapter.get_info();
-    log::info!("Using {} ({:?})", adapter_info.name, adapter_info.backend);
-
-    let optional_features = wgpu::Features::empty();
-    let required_features = wgpu::Features::empty();
-    let adapter_features = adapter.features();
-    assert!(
-      adapter_features.contains(required_features),
-      "Adapter does not support required features for this example: {:?}",
-      required_features - adapter_features
-    );
-
-    let trace_dir = std::env::var("WGPU_TRACE");
     let (device, queue) = adapter
       .request_device(
         &wgpu::DeviceDescriptor {
           label: None,
-          required_features: (optional_features & adapter_features) | required_features,
-          required_limits: wgpu::Limits::downlevel_defaults(),
-          memory_hints: wgpu::MemoryHints::MemoryUsage,
+          required_features: wgpu::Features::empty(),
+          required_limits: wgpu::Limits::default(),
+          memory_hints: Default::default(),
         },
-        trace_dir.ok().as_ref().map(std::path::Path::new),
+        None,
       )
       .await
-      .expect("Failed to create device");
-
+      .unwrap();
     Self {
       instance,
       adapter,
@@ -150,7 +120,7 @@ async fn start() {
   env_logger::init();
   let window_loop = EventLoopWrapper::new("Galaxy Sim");
   let mut surface = SurfaceWrapper::new();
-  let context = ExampleContext::init_async(&mut surface).await;
+  let context = State::init_async(&surface).await;
   let mut example = None;
   let event_loop_function = EventLoop::run;
 
@@ -158,10 +128,10 @@ async fn start() {
   let _ = (event_loop_function)(
     window_loop.event_loop,
     move |event: Event<()>, target: &EventLoopWindowTarget<()>| match event {
-      ref e if SurfaceWrapper::start_condition(e) => {
+      ref e if matches!(e, Event::NewEvents(StartCause::Init)) => {
         surface.resume(&context, window_loop.window.clone());
         if example.is_none() {
-          example = Some(State::init(
+          example = Some(Render::init(
             surface.config(),
             &context.adapter,
             &context.device,
@@ -203,7 +173,7 @@ async fn start() {
 
           window_loop.window.request_redraw();
         }
-        _ => example.as_mut().unwrap().update(event),
+        _ => {}
       },
       _ => {}
     },

@@ -1,11 +1,11 @@
+use crate::state::run;
 use nanorand::{Rng, WyRand};
 use std::{borrow::Cow, mem};
 use wgpu::util::DeviceExt;
-
 const NUM_PARTICLES: u32 = 1500;
 const PARTICLES_PER_GROUP: u32 = 64;
 
-pub struct State {
+pub struct Render {
   particle_bind_groups: Vec<wgpu::BindGroup>,
   particle_buffers: Vec<wgpu::Buffer>,
   vertices_buffer: wgpu::Buffer,
@@ -15,12 +15,11 @@ pub struct State {
   frame_num: usize,
 }
 
-impl State {
+impl Render {
   pub fn required_limits() -> wgpu::Limits {
     wgpu::Limits::downlevel_defaults()
   }
 
-  /// constructs initial instance of Example struct
   pub fn init(
     config: &wgpu::SurfaceConfiguration,
     _adapter: &wgpu::Adapter,
@@ -29,15 +28,12 @@ impl State {
   ) -> Self {
     let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
       label: None,
-      source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("compute.wgsl"))),
+      source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shaders/compute.wgsl"))),
     });
     let draw_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
       label: None,
-      source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("draw.wgsl"))),
+      source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shaders/draw.wgsl"))),
     });
-
-    // buffer for simulation parameters uniform
-
     let sim_param_data = [
       0.04f32, // deltaT
       0.1,     // rule1Distance
@@ -53,9 +49,6 @@ impl State {
       contents: bytemuck::cast_slice(&sim_param_data),
       usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
-
-    // create compute bind layout group and compute pipeline layout
-
     let compute_bind_group_layout =
       device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
@@ -99,9 +92,6 @@ impl State {
       bind_group_layouts: &[&compute_bind_group_layout],
       push_constant_ranges: &[],
     });
-
-    // create render pipeline with empty bind group layout
-
     let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: Some("render"),
       bind_group_layouts: &[],
@@ -140,9 +130,6 @@ impl State {
       multiview: None,
       cache: None,
     });
-
-    // create compute pipeline
-
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
       label: Some("Compute pipeline"),
       layout: Some(&compute_pipeline_layout),
@@ -151,30 +138,21 @@ impl State {
       compilation_options: Default::default(),
       cache: None,
     });
-
-    // buffer for the three 2d triangle vertices of each instance
-
     let vertex_buffer_data = [-0.01f32, -0.02, 0.01, -0.02, 0.00, 0.02];
     let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Vertex Buffer"),
       contents: bytemuck::bytes_of(&vertex_buffer_data),
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
-
-    // buffer for all particles data of type [(posx,posy,velx,vely),...]
-
     let mut initial_particle_data = vec![0.0f32; (4 * NUM_PARTICLES) as usize];
     let mut rng = WyRand::new_seed(42);
-    let mut unif = || rng.generate::<f32>() * 2f32 - 1f32; // Generate a num (-1, 1)
+    let mut unif = || rng.generate::<f32>() * 2f32 - 1f32;
     for particle_instance_chunk in initial_particle_data.chunks_mut(4) {
       particle_instance_chunk[0] = unif(); // posx
       particle_instance_chunk[1] = unif(); // posy
       particle_instance_chunk[2] = unif() * 0.1; // velx
       particle_instance_chunk[3] = unif() * 0.1; // vely
     }
-
-    // creates two buffers of particle data each of size NUM_PARTICLES
-    // the two buffers alternate as dst and src for each frame
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
     for i in 0..2 {
@@ -188,10 +166,6 @@ impl State {
         }),
       );
     }
-
-    // create two bind groups, one for each buffer as the src
-    // where the alternate buffer is used as the dst
-
     for i in 0..2 {
       particle_bind_groups.push(device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &compute_bind_group_layout,
@@ -206,19 +180,14 @@ impl State {
           },
           wgpu::BindGroupEntry {
             binding: 2,
-            resource: particle_buffers[(i + 1) % 2].as_entire_binding(), // bind to opposite buffer
+            resource: particle_buffers[(i + 1) % 2].as_entire_binding(),
           },
         ],
         label: None,
       }));
     }
-
-    // calculates number of work groups from PARTICLES_PER_GROUP constant
     let work_group_count = ((NUM_PARTICLES as f32) / (PARTICLES_PER_GROUP as f32)).ceil() as u32;
-
-    // returns Example struct and No encoder commands
-
-    State {
+    Render {
       particle_bind_groups,
       particle_buffers,
       vertices_buffer,
@@ -229,15 +198,7 @@ impl State {
     }
   }
 
-  /// update is called for any WindowEvent not handled by the framework
-  pub fn update(&mut self, _event: winit::event::WindowEvent) {
-    //empty
-  }
-
-  /// render is called each frame, dispatching compute groups proportional
-  ///   a TriangleList draw call for all NUM_PARTICLES at 3 vertices each
   pub fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
-    // create render pass descriptor and its color attachments
     let color_attachments = [Some(wgpu::RenderPassColorAttachment {
       view,
       resolve_target: None,
@@ -253,14 +214,10 @@ impl State {
       timestamp_writes: None,
       occlusion_query_set: None,
     };
-
-    // get command encoder
     let mut command_encoder =
       device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-    command_encoder.push_debug_group("compute boid movement");
     {
-      // compute pass
       let mut cpass = command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: None,
         timestamp_writes: None,
@@ -269,30 +226,19 @@ impl State {
       cpass.set_bind_group(0, &self.particle_bind_groups[self.frame_num % 2], &[]);
       cpass.dispatch_workgroups(self.work_group_count, 1, 1);
     }
-    command_encoder.pop_debug_group();
-
-    command_encoder.push_debug_group("render boids");
     {
-      // render pass
       let mut rpass = command_encoder.begin_render_pass(&render_pass_descriptor);
       rpass.set_pipeline(&self.render_pipeline);
-      // render dst particles
       rpass.set_vertex_buffer(0, self.particle_buffers[(self.frame_num + 1) % 2].slice(..));
-      // the three instance-local vertices
       rpass.set_vertex_buffer(1, self.vertices_buffer.slice(..));
       rpass.draw(0..3, 0..NUM_PARTICLES);
     }
     command_encoder.pop_debug_group();
-
-    // update frame count
     self.frame_num += 1;
-
-    // done
     queue.submit(Some(command_encoder.finish()));
   }
 }
 
-/// run example
 pub fn main() {
-  crate::framework::run();
+  run();
 }

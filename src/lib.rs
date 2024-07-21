@@ -1,2 +1,2 @@
-pub mod boids;
-pub mod framework;
+pub mod render;
+pub mod state;

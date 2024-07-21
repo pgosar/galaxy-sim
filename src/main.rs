@@ -1,3 +1,3 @@
 fn main() {
-  galaxy_sim::boids::main();
+  galaxy_sim::render::main();
 }
