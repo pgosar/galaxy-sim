@@ -1,9 +1,21 @@
 use crate::state::run;
 use nanorand::{Rng, WyRand};
-use std::{borrow::Cow, mem};
+use std::borrow::Cow;
 use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 const NUM_PARTICLES: u32 = 1500;
 const PARTICLES_PER_GROUP: u32 = 64;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct SimParams {
+  delta_t: f32,
+  rule1_distance: f32,
+  rule2_distance: f32,
+  rule3_distance: f32,
+  rule1_scale: f32,
+  rule2_scale: f32,
+  rule3_scale: f32,
+}
 
 pub struct Render {
   particle_bind_groups: Vec<wgpu::BindGroup>,
@@ -32,19 +44,18 @@ impl Render {
       label: None,
       source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shaders/draw.wgsl"))),
     });
-    let sim_param_data = [
-      0.04f32, // deltaT
-      0.1,     // rule1Distance
-      0.025,   // rule2Distance
-      0.025,   // rule3Distance
-      0.02,    // rule1Scale
-      0.05,    // rule2Scale
-      0.005,   // rule3Scale
-    ]
-    .to_vec();
+    let sim_param_data = SimParams {
+      delta_t: 0.04,
+      rule1_distance: 0.1,
+      rule2_distance: 0.025,
+      rule3_distance: 0.025,
+      rule1_scale: 0.02,
+      rule2_scale: 0.05,
+      rule3_scale: 0.005,
+    };
     let sim_param_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Simulation Parameter Buffer"),
-      contents: bytemuck::cast_slice(&sim_param_data),
+      contents: bytemuck::cast_slice(&[sim_param_data]),
       usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
@@ -61,9 +72,7 @@ impl Render {
             ty: wgpu::BindingType::Buffer {
               ty: wgpu::BufferBindingType::Uniform,
               has_dynamic_offset: false,
-              min_binding_size: wgpu::BufferSize::new(
-                (sim_param_data.len() * mem::size_of::<f32>()) as _,
-              ),
+              min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<SimParams>() as _),
             },
             count: None,
           },
@@ -147,11 +156,21 @@ impl Render {
       cache: None,
     });
 
-    // triangle sizes
+    let size = 0.02f32; // Size multiplier, adjust this to change the triangle size
+
     let vertex_buffer_data = [
-      -0.01f32, -0.02, 0.0, // First vertex
-      0.01, -0.02, 0.0, // Second vertex
-      0.00, 0.02, 0.0, // Third vertex
+      // First vertex (bottom left)
+      -0.866 * size,
+      -0.5 * size,
+      0.0,
+      // Second vertex (bottom right)
+      0.866 * size,
+      -0.5 * size,
+      0.0,
+      // Third vertex (top)
+      0.0,
+      size,
+      0.0,
     ];
     let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Vertex Buffer"),
