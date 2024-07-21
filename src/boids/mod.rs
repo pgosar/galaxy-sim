@@ -1,20 +1,11 @@
-// Flocking boids example with gpu compute update pass
-// adapted from https://github.com/austinEng/webgpu-samples/blob/master/src/examples/computeBoids.ts
-
 use nanorand::{Rng, WyRand};
 use std::{borrow::Cow, mem};
 use wgpu::util::DeviceExt;
 
-// number of boid particles to simulate
-
 const NUM_PARTICLES: u32 = 1500;
-
-// number of single-particle calculations (invocations) in each gpu work group
-
 const PARTICLES_PER_GROUP: u32 = 64;
 
-/// Example struct holds references to wgpu resources and frame persistent data
-struct Example {
+pub struct State {
   particle_bind_groups: Vec<wgpu::BindGroup>,
   particle_buffers: Vec<wgpu::Buffer>,
   vertices_buffer: wgpu::Buffer,
@@ -24,20 +15,13 @@ struct Example {
   frame_num: usize,
 }
 
-impl crate::framework::Example for Example {
-  fn required_limits() -> wgpu::Limits {
+impl State {
+  pub fn required_limits() -> wgpu::Limits {
     wgpu::Limits::downlevel_defaults()
   }
 
-  fn required_downlevel_capabilities() -> wgpu::DownlevelCapabilities {
-    wgpu::DownlevelCapabilities {
-      flags: wgpu::DownlevelFlags::COMPUTE_SHADERS,
-      ..Default::default()
-    }
-  }
-
   /// constructs initial instance of Example struct
-  fn init(
+  pub fn init(
     config: &wgpu::SurfaceConfiguration,
     _adapter: &wgpu::Adapter,
     device: &wgpu::Device,
@@ -191,7 +175,6 @@ impl crate::framework::Example for Example {
 
     // creates two buffers of particle data each of size NUM_PARTICLES
     // the two buffers alternate as dst and src for each frame
-
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
     for i in 0..2 {
@@ -235,7 +218,7 @@ impl crate::framework::Example for Example {
 
     // returns Example struct and No encoder commands
 
-    Example {
+    State {
       particle_bind_groups,
       particle_buffers,
       vertices_buffer,
@@ -247,30 +230,18 @@ impl crate::framework::Example for Example {
   }
 
   /// update is called for any WindowEvent not handled by the framework
-  fn update(&mut self, _event: winit::event::WindowEvent) {
-    //empty
-  }
-
-  /// resize is called on WindowEvent::Resized events
-  fn resize(
-    &mut self,
-    _sc_desc: &wgpu::SurfaceConfiguration,
-    _device: &wgpu::Device,
-    _queue: &wgpu::Queue,
-  ) {
+  pub fn update(&mut self, _event: winit::event::WindowEvent) {
     //empty
   }
 
   /// render is called each frame, dispatching compute groups proportional
   ///   a TriangleList draw call for all NUM_PARTICLES at 3 vertices each
-  fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
+  pub fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
     // create render pass descriptor and its color attachments
     let color_attachments = [Some(wgpu::RenderPassColorAttachment {
       view,
       resolve_target: None,
       ops: wgpu::Operations {
-        // Not clearing here in order to test wgpu's zero texture initialization on a surface texture.
-        // Users should avoid loading uninitialized memory since this can cause additional overhead.
         load: wgpu::LoadOp::Load,
         store: wgpu::StoreOp::Store,
       },
@@ -323,23 +294,5 @@ impl crate::framework::Example for Example {
 
 /// run example
 pub fn main() {
-  crate::framework::run::<Example>("boids");
+  crate::framework::run();
 }
-
-#[cfg(test)]
-#[wgpu_test::gpu_test]
-static TEST: crate::framework::ExampleTestParams = crate::framework::ExampleTestParams {
-  name: "boids",
-  // Generated on 1080ti on Vk/Windows
-  image_path: "/examples/src/boids/screenshot.png",
-  width: 1024,
-  height: 768,
-  optional_features: wgpu::Features::default(),
-  base_test_parameters: wgpu_test::TestParameters::default()
-    .downlevel_flags(wgpu::DownlevelFlags::COMPUTE_SHADERS)
-    .limits(wgpu::Limits::downlevel_defaults())
-    // Lots of validation errors, maybe related to https://github.com/gfx-rs/wgpu/issues/3160
-    .expect_fail(wgpu_test::FailureCase::molten_vk()),
-  comparisons: &[wgpu_test::ComparisonType::Mean(0.005)],
-  _phantom: std::marker::PhantomData::<Example>,
-};

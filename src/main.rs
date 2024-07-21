@@ -1,4 +1,3 @@
 fn main() {
-  wgpu_examples::boids::main();
+  galaxy_sim::boids::main();
 }
-
