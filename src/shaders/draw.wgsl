@@ -6,9 +6,9 @@ struct CameraUniform {
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
-    @location(0) particle_pos: vec2<f32>,
-    @location(1) particle_vel: vec2<f32>,
-    @location(2) position: vec2<f32>,
+    @location(0) particle_pos: vec3<f32>,
+    @location(1) particle_vel: vec3<f32>,
+    @location(2) position: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -20,12 +20,25 @@ struct VertexOutput {
 fn main_vs(
     model: VertexInput,
 ) -> VertexOutput {
-    let angle = -atan2(model.particle_vel.x, model.particle_vel.y);
-    let rotated_pos = vec2<f32>(
-        model.position.x * cos(angle) - model.position.y * sin(angle),
-        model.position.x * sin(angle) + model.position.y * cos(angle)
+    // Calculate rotation angles
+    let angle_xz = -atan2(model.particle_vel.x, model.particle_vel.z);
+    let angle_y = asin(model.particle_vel.y / length(model.particle_vel));
+
+    // Rotate around Y axis
+    let rotated_xz = vec3<f32>(
+        model.position.x * cos(angle_xz) - model.position.z * sin(angle_xz),
+        model.position.y,
+        model.position.x * sin(angle_xz) + model.position.z * cos(angle_xz)
     );
-    let world_pos = vec3<f32>(rotated_pos + model.particle_pos, 0.0);
+
+    // Rotate around X axis
+    let rotated_pos = vec3<f32>(
+        rotated_xz.x,
+        rotated_xz.y * cos(angle_y) - rotated_xz.z * sin(angle_y),
+        rotated_xz.y * sin(angle_y) + rotated_xz.z * cos(angle_y)
+    );
+
+    let world_pos = rotated_pos + model.particle_pos;
 
     var out: VertexOutput;
     out.clip_position = camera.view_proj * vec4<f32>(world_pos, 1.0);

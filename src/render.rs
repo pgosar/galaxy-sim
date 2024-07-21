@@ -108,14 +108,14 @@ impl Render {
         compilation_options: Default::default(),
         buffers: &[
           wgpu::VertexBufferLayout {
-            array_stride: 4 * 4,
+            array_stride: 6 * 4,
             step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3],
           },
           wgpu::VertexBufferLayout {
             array_stride: 2 * 4,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
+            attributes: &wgpu::vertex_attr_array![2 => Float32x3],
           },
         ],
       },
@@ -139,20 +139,26 @@ impl Render {
       compilation_options: Default::default(),
       cache: None,
     });
-    let vertex_buffer_data = [-0.01f32, -0.02, 0.01, -0.02, 0.00, 0.02];
+    let vertex_buffer_data = [
+      -0.01f32, -0.02, 0.0, // First vertex
+      0.01, -0.02, 0.0, // Second vertex
+      0.00, 0.02, 0.0, // Third vertex
+    ];
     let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Vertex Buffer"),
       contents: bytemuck::bytes_of(&vertex_buffer_data),
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
-    let mut initial_particle_data = vec![0.0f32; (4 * NUM_PARTICLES) as usize];
+    let mut initial_particle_data = vec![0.0f32; (6 * NUM_PARTICLES) as usize];
     let mut rng = WyRand::new_seed(42);
     let mut unif = || rng.generate::<f32>() * 2f32 - 1f32;
-    for particle_instance_chunk in initial_particle_data.chunks_mut(4) {
+    for particle_instance_chunk in initial_particle_data.chunks_mut(6) {
       particle_instance_chunk[0] = unif(); // posx
       particle_instance_chunk[1] = unif(); // posy
-      particle_instance_chunk[2] = unif() * 0.1; // velx
-      particle_instance_chunk[3] = unif() * 0.1; // vely
+      particle_instance_chunk[2] = unif(); // posz
+      particle_instance_chunk[3] = unif() * 0.1; // velx
+      particle_instance_chunk[4] = unif() * 0.1; // vely
+      particle_instance_chunk[5] = unif() * 0.1; // velz
     }
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
