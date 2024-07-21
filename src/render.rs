@@ -25,6 +25,7 @@ impl Render {
     _adapter: &wgpu::Adapter,
     device: &wgpu::Device,
     _queue: &wgpu::Queue,
+    camera_bind_group_layout: &wgpu::BindGroupLayout,
   ) -> Self {
     let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
       label: None,
@@ -94,7 +95,7 @@ impl Render {
     });
     let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: Some("render"),
-      bind_group_layouts: &[],
+      bind_group_layouts: &[camera_bind_group_layout],
       push_constant_ranges: &[],
     });
 
@@ -198,7 +199,13 @@ impl Render {
     }
   }
 
-  pub fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
+  pub fn render(
+    &mut self,
+    view: &wgpu::TextureView,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    camera_bind_group: &wgpu::BindGroup,
+  ) {
     let color_attachments = [Some(wgpu::RenderPassColorAttachment {
       view,
       resolve_target: None,
@@ -229,6 +236,7 @@ impl Render {
     {
       let mut rpass = command_encoder.begin_render_pass(&render_pass_descriptor);
       rpass.set_pipeline(&self.render_pipeline);
+      rpass.set_bind_group(0, camera_bind_group, &[]);
       rpass.set_vertex_buffer(0, self.particle_buffers[(self.frame_num + 1) % 2].slice(..));
       rpass.set_vertex_buffer(1, self.vertices_buffer.slice(..));
       rpass.draw(0..3, 0..NUM_PARTICLES);
