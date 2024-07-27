@@ -1,12 +1,14 @@
 struct Particle {
-    pos: vec3<f32>,
-    vel: vec3<f32>,
-    mass: f32,
+    pos: array<f32, 3>,
+    vel: array<f32, 3>,
+    acc: array<f32, 3>,
+    mass: f32
 };
 
 struct SimParams {
-    deltaT: f32,
-    gravitationalConstant: f32,
+    dt: f32,
+    g: f32,
+    e: f32,
 };
 
 @group(0) @binding(0) var<uniform> params: SimParams;
@@ -15,40 +17,43 @@ struct SimParams {
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
-    let total = arrayLength(&particlesSrc);
-    let index = global_invocation_id.x;
-    if (index >= total) {
+    let totalParticles = arrayLength(&particlesSrc);
+    let particleIndex = global_invocation_id.x;
+    if (particleIndex >= totalParticles) {
         return;
     }
 
-    var vPos: vec3<f32> = particlesSrc[index].pos;
-    var vVel: vec3<f32> = particlesSrc[index].vel;
-    var vMass: f32 = particlesSrc[index].mass;
-    var netForce: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
+    let currentParticle = particlesSrc[particleIndex];
+    var position = vec3<f32>(currentParticle.pos[0], currentParticle.pos[1], currentParticle.pos[2]);
+    var velocity = vec3<f32>(currentParticle.vel[0], currentParticle.vel[1], currentParticle.vel[2]);
+    var acceleration = vec3<f32>(currentParticle.acc[0], currentParticle.acc[1], currentParticle.acc[2]);
 
-    let G = params.gravitationalConstant;
+    // Leapfrog numerical integration
+    velocity += acceleration * params.dt / 2.0;
+    position += velocity * params.dt;
 
-    for (var i: u32 = 0u; i < total; i++) {
-        if (i == index) {
+    // Calculate acceleration
+    // a_i = sum_j!=i ( (G * m_j / (r_i - r_j)^3 + e) * (r_j - r_i))
+    var newAcceleration = vec3<f32>(0.0, 0.0, 0.0);
+    for (var i: u32 = 0u; i < totalParticles; i++) {
+        if (i == particleIndex) {
             continue;
         }
-        let pos = particlesSrc[i].pos;
-        let mass = particlesSrc[i].mass;
-
-        let direction = pos - vPos;
-        let distanceSquared = dot(direction, direction);
-        let distance = sqrt(distanceSquared);
-
-        if (distance > 0.0) {
-            let forceMagnitude = G * vMass * mass / distanceSquared;
-            let force = normalize(direction) * forceMagnitude;
-
-            netForce += force;
-        }
+        let otherParticle = particlesSrc[i];
+        let otherPosition = vec3<f32>(otherParticle.pos[0], otherParticle.pos[1], otherParticle.pos[2]);
+        let r = distance(position, otherPosition);
+        let force = params.g * otherParticle.mass / (r * r * r + params.e) *
+                  normalize(otherPosition - position);
+        newAcceleration += force * params.dt;
     }
-    var acceleration = netForce / vMass;
-    vVel += acceleration * params.deltaT;
-    vPos += vVel * params.deltaT;
 
-    particlesDst[index] = Particle(vPos, vVel, vMass);
+    velocity += newAcceleration * params.dt / 2.0;
+
+    particlesDst[particleIndex] = Particle(
+        array<f32, 3>(position.x, position.y, position.z),
+        array<f32, 3>(velocity.x, velocity.y, velocity.z),
+        array<f32, 3>(newAcceleration.x, newAcceleration.y, newAcceleration.z),
+        currentParticle.mass
+    );
 }
+

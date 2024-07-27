@@ -1,5 +1,6 @@
 use crate::camera::{Camera, CameraController, CameraUniform};
 use crate::render::Render;
+use crate::{CameraParams, SimParams};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use wgpu::MemoryHints;
@@ -89,6 +90,7 @@ struct State {
   camera_controller: CameraController,
   camera_bind_group_layout: wgpu::BindGroupLayout,
 }
+
 impl State {
   fn input(&mut self, event: &WindowEvent) -> bool {
     self.camera_controller.process_events(event)
@@ -122,7 +124,7 @@ impl State {
     let (device, queue) = adapter
       .request_device(
         &wgpu::DeviceDescriptor {
-          label: None,
+          label: Some("Device Descriptor"),
           required_features: wgpu::Features::empty(),
           required_limits: wgpu::Limits::default(),
           memory_hints: MemoryHints::default(),
@@ -171,7 +173,11 @@ impl State {
       }],
       label: Some("camera_bind_group"),
     });
-    let camera_controller = CameraController::init(0.2, 0.02);
+    let camera_params = CameraParams {
+      ..Default::default()
+    };
+    let camera_controller =
+      CameraController::init(camera_params.speed, camera_params.rotational_speed);
 
     Self {
       instance,
@@ -195,6 +201,9 @@ async fn start() {
   let mut context = State::init(&surface, &window_loop.window.inner_size()).await;
   let event_loop_function = EventLoop::run;
   let mut example = None;
+  let sim_params = SimParams {
+    ..Default::default()
+  };
 
   // main runner
   let _ = (event_loop_function)(
@@ -209,6 +218,7 @@ async fn start() {
             &context.device,
             &context.queue,
             &context.camera_bind_group_layout,
+            sim_params,
           ));
         }
       }
@@ -253,6 +263,7 @@ async fn start() {
                   &context.device,
                   &context.queue,
                   &context.camera_bind_group,
+                  &sim_params,
                 );
                 frame.present();
               }
