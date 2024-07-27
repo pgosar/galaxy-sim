@@ -21,28 +21,10 @@ struct VertexOutput {
 fn main_vs(
     model: VertexInput,
 ) -> VertexOutput {
-    // Calculate rotation angles
-    let angle_xz = -atan2(model.particle_vel.x, model.particle_vel.z);
-    let angle_y = asin(model.particle_vel.y / length(model.particle_vel));
-
-    // Rotate around Y axis
-    let rotated_xz = vec3<f32>(
-        model.position.x * cos(angle_xz) - model.position.z * sin(angle_xz),
-        model.position.y,
-        model.position.x * sin(angle_xz) + model.position.z * cos(angle_xz)
-    );
-
-    // Rotate around X axis
-    let rotated_pos = vec3<f32>(
-        rotated_xz.x,
-        rotated_xz.y * cos(angle_y) - rotated_xz.z * sin(angle_y),
-        rotated_xz.y * sin(angle_y) + rotated_xz.z * cos(angle_y)
-    );
-
-    let world_pos = rotated_pos + model.particle_pos;
+    let offset_position = model.particle_pos + model.position;
 
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * vec4<f32>(world_pos, 1.0);
+    out.clip_position = camera.view_proj * vec4<f32>(offset_position, 1.0);
     out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
     return out;
 }
