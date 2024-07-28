@@ -61,7 +61,7 @@ pub fn create_spiral_galaxy(sim_params: &SimParams) -> Vec<Particle> {
   let galaxy_params = GalaxyParams::default();
 
   for i in 1..sim_params.num_particles {
-    let (pos, vel, mass) = if rng.gen::<f32>() < 0.2 {
+    let (pos, vel, mass) = if rng.gen::<f32>() < 0.4 {
       // 20% of particles in the galactic bulge
       create_bulge_particle(&mut rng, sim_params, &galaxy_params)
     } else {
@@ -89,9 +89,9 @@ fn create_bulge_particle(
   let pos = loop {
     let x = normal_dist.sample(rng);
     let y = normal_dist.sample(rng);
-    let z = normal_dist.sample(rng);
+    let z = normal_dist.sample(rng) * galaxy_params.width;
     let pos = Vector3::new(x, y, z);
-    if pos.magnitude() <= 0.6 && pos.magnitude() >= 0.25 {
+    if pos.magnitude() <= 0.3 && pos.magnitude() >= 0.02 {
       break pos;
     }
   };
@@ -111,17 +111,19 @@ fn create_arm_particle(
 ) -> (Vector3<f32>, Vector3<f32>, f32) {
   let theta = i * (galaxy_params.spiral_length * PI / (sim_params.num_particles as f32 * 0.8));
 
+  // make arms start at center
   let r = galaxy_params.spiral_size * theta.sqrt();
   let min_radius = 1.0 * galaxy_params.bulge_std;
   let r = r.max(min_radius);
 
-  let arm_theta = theta + if i as u32 % 2 == 0 { 0.0 } else { PI };
-
-  let arm_deviation = 0.05 * rng.gen::<f32>();
+  let normal_dist = Normal::new(0.0, galaxy_params.spiral_width).unwrap();
+  // choose arm 1 or 2
+  let arm_theta = theta + (i % 2.0) * std::f32::consts::PI;
+  let arm_deviation = normal_dist.sample(rng);
   let pos = Vector3::new(
     (r + arm_deviation) * arm_theta.cos(),
     (r + arm_deviation) * arm_theta.sin(),
-    0.0,
+    normal_dist.sample(rng) * galaxy_params.width,
   );
   let vel = {
     let speed = (sim_params.gravity * 1000.0 / pos.magnitude()).sqrt();

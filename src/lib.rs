@@ -18,10 +18,10 @@ pub struct SimParams {
 impl Default for SimParams {
   fn default() -> Self {
     Self {
-      delta_t: 0.0048,
+      delta_t: 0.0016,
       gravity: 4e-7,
       calibrate: 1e-4,
-      central_mass: 1e5,
+      central_mass: 2e5,
       num_particles: 1e4 as u32,
       particles_per_group: 64,
       triangle_size: 0.002f32,
@@ -34,9 +34,10 @@ impl Default for SimParams {
 pub struct GalaxyParams {
   pub arms: u32,
   pub spiral_size: f32,
-  pub spiral_tightness: f32,
+  pub spiral_width: f32,
   pub spiral_length: f32,
   pub bulge_std: f32,
+  pub width: f32,
 }
 
 impl Default for GalaxyParams {
@@ -44,9 +45,10 @@ impl Default for GalaxyParams {
     Self {
       arms: 2,
       spiral_size: 0.2,
-      spiral_tightness: 0.2,
-      spiral_length: 3.0,
+      spiral_width: 0.025,
+      spiral_length: 2.0,
       bulge_std: 0.1,
+      width: 0.4,
     }
   }
 }
