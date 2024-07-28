@@ -160,7 +160,7 @@ impl Render {
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
 
-    let initial_particle_data = initialize::create_elliptical_galaxy(&sim_params);
+    let initial_particle_data = initialize::create_spiral_galaxy(&sim_params);
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
 

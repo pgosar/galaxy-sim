@@ -107,7 +107,6 @@ impl State {
 
   async fn init(surface: &SurfaceWrapper, size: &PhysicalSize<u32>) -> Self {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-      #[cfg(not(target_arch = "wasm32"))]
       backends: wgpu::Backends::PRIMARY,
       ..Default::default()
     });
@@ -173,9 +172,7 @@ impl State {
       }],
       label: Some("camera_bind_group"),
     });
-    let camera_params = CameraParams {
-      ..Default::default()
-    };
+    let camera_params = CameraParams::default();
     let camera_controller =
       CameraController::init(camera_params.speed, camera_params.rotational_speed);
 
@@ -201,9 +198,7 @@ async fn start() {
   let mut context = State::init(&surface, &window_loop.window.inner_size()).await;
   let event_loop_function = EventLoop::run;
   let mut example = None;
-  let sim_params = SimParams {
-    ..Default::default()
-  };
+  let sim_params = SimParams::default();
 
   // main runner
   let _ = (event_loop_function)(
