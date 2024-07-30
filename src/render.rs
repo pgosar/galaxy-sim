@@ -1,11 +1,6 @@
-use crate::state::run;
+use crate::{initialize, GalaxyType, Particle, SimParams};
 use std::borrow::Cow;
 use wgpu::{util::DeviceExt, PipelineCompilationOptions};
-
-use crate::initialize;
-
-use crate::Particle;
-use crate::SimParams;
 
 pub struct Render {
   particle_bind_groups: Vec<wgpu::BindGroup>,
@@ -65,7 +60,8 @@ impl Render {
               ty: wgpu::BufferBindingType::Storage { read_only: true },
               has_dynamic_offset: false,
               min_binding_size: wgpu::BufferSize::new(
-                (sim_params.num_particles as usize * std::mem::size_of::<Particle>()) as _,
+                ((sim_params.num_particles * sim_params.num_galaxies) as usize
+                  * std::mem::size_of::<Particle>()) as _,
               ),
             },
             count: None,
@@ -77,7 +73,8 @@ impl Render {
               ty: wgpu::BufferBindingType::Storage { read_only: false },
               has_dynamic_offset: false,
               min_binding_size: wgpu::BufferSize::new(
-                (sim_params.num_particles as usize * std::mem::size_of::<Particle>()) as _,
+                ((sim_params.num_particles * sim_params.num_galaxies) as usize
+                  * std::mem::size_of::<Particle>()) as _,
               ),
             },
             count: None,
@@ -159,8 +156,8 @@ impl Render {
       contents: bytemuck::bytes_of(&vertex_buffer_data),
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
-
-    let initial_particle_data = initialize::create_spiral_galaxy(&sim_params);
+    let galaxy_type = GalaxyType::Elliptical;
+    let initial_particle_data = initialize::create_galaxies(galaxy_type, &sim_params);
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
 
@@ -195,8 +192,9 @@ impl Render {
         label: Some(&format!("Particle Bind Group {i}")),
       }));
     }
-    let work_group_count =
-      ((sim_params.num_particles as f32) / (sim_params.particles_per_group as f32)).ceil() as u32;
+    let work_group_count = (((sim_params.num_particles * sim_params.num_galaxies) as f32)
+      / (sim_params.particles_per_group as f32))
+      .ceil() as u32;
     Render {
       particle_bind_groups,
       particle_buffers,
@@ -251,14 +249,10 @@ impl Render {
       rpass.set_bind_group(0, camera_bind_group, &[]);
       rpass.set_vertex_buffer(0, self.particle_buffers[(self.frame_num + 1) % 2].slice(..));
       rpass.set_vertex_buffer(1, self.vertices_buffer.slice(..));
-      rpass.draw(0..3, 0..sim_params.num_particles);
+      rpass.draw(0..3, 0..sim_params.num_particles * sim_params.num_galaxies);
     }
     command_encoder.pop_debug_group();
     self.frame_num += 1;
     queue.submit(Some(command_encoder.finish()));
   }
-}
-
-pub fn main() {
-  run();
 }

@@ -1,5 +1,6 @@
 ### Galaxy Simulations v2
 
-Built with Rust and WGPU
+Galaxy creation and collision simulation built with Rust and WGPU.
 
-A far better version of original I made
+This is a rewrite of my previous project to have a cleaner, more organized codebase, more simulation
+modes (number of colliding galaxies, creating galaxies from clouds etc.), and more optimizations.

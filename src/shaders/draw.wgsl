@@ -8,8 +8,9 @@ var<uniform> camera: CameraUniform;
 struct VertexInput {
     @location(0) particle_pos: vec3<f32>,
     @location(1) particle_vel: vec3<f32>,
-    // location(2) is mass which is not needed here
+    @location(2) mass: f32,
     @location(3) position: vec3<f32>,
+    @builtin(instance_index) particle_index: u32,  // Add this line to get the particle index
 }
 
 struct VertexOutput {
@@ -25,7 +26,17 @@ fn main_vs(
 
     var out: VertexOutput;
     out.clip_position = camera.view_proj * vec4<f32>(offset_position, 1.0);
-    out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+
+    // Determine color based on the particle index
+    let total_particles = 1e4;
+    let half_particles = total_particles / 2.0;
+
+    if f32(model.particle_index) < half_particles {
+        out.color = vec4<f32>(1.0, 0.0, 0.0, 1.0); // Red color for the first half
+    } else {
+        out.color = vec4<f32>(0.0, 0.0, 1.0, 1.0); // Blue color for the second half
+    }
+
     return out;
 }
 

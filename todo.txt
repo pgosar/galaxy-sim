@@ -1,0 +1,11 @@
+features:
+
+command line argument to choose number of galaxies and galaxy types
+be able to randomize types or choose specific ones as a list
+if one type inputted use as default for all
+be able to actually move around the camera instead of only rotating and zooming
+fps in top corner and other benchmarks
+
+optimizations:
+barnes hut, jemalloc allocator...
+use flamegraph

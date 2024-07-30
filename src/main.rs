@@ -1,3 +1,3 @@
 fn main() {
-  galaxy_sim::render::main();
+  galaxy_sim::state::run();
 }

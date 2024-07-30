@@ -1,6 +1,4 @@
-use crate::camera::{Camera, CameraController, CameraUniform};
-use crate::render::Render;
-use crate::{CameraParams, SimParams};
+use crate::{camera::{Camera, CameraController, CameraUniform}, render::Render, CameraParams, SimParams};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use wgpu::MemoryHints;
