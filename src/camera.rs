@@ -55,10 +55,14 @@ enum Movement {
   None,
   Forward,
   Backward,
-  Left,
-  Right,
+  RotateLeft,
+  RotateRight,
   RotateUp,
   RotateDown,
+  MoveLeft,
+  MoveRight,
+  MoveUp,
+  MoveDown,
 }
 
 pub struct CameraController {
@@ -90,12 +94,16 @@ impl CameraController {
       } => {
         let is_pressed = *state == ElementState::Pressed;
         self.movement = match keycode {
-          KeyCode::KeyW | KeyCode::ArrowUp if is_pressed => Movement::Forward,
-          KeyCode::KeyA | KeyCode::ArrowLeft if is_pressed => Movement::Left,
-          KeyCode::KeyS | KeyCode::ArrowDown if is_pressed => Movement::Backward,
-          KeyCode::KeyD | KeyCode::ArrowRight if is_pressed => Movement::Right,
+          KeyCode::KeyW if is_pressed => Movement::Forward,
+          KeyCode::KeyA if is_pressed => Movement::RotateLeft,
+          KeyCode::KeyS if is_pressed => Movement::Backward,
+          KeyCode::KeyD if is_pressed => Movement::RotateRight,
           KeyCode::KeyQ if is_pressed => Movement::RotateUp,
           KeyCode::KeyE if is_pressed => Movement::RotateDown,
+          KeyCode::KeyH if is_pressed => Movement::MoveLeft,
+          KeyCode::KeyJ if is_pressed => Movement::MoveDown,
+          KeyCode::KeyK if is_pressed => Movement::MoveUp,
+          KeyCode::KeyL if is_pressed => Movement::MoveRight,
           _ => Movement::None,
         };
         true
@@ -119,10 +127,10 @@ impl CameraController {
       Movement::Backward => {
         camera.eye -= forward_norm * self.speed;
       }
-      Movement::Right => {
+      Movement::RotateRight => {
         camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
       }
-      Movement::Left => {
+      Movement::RotateLeft => {
         camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
       }
       Movement::RotateUp => {
@@ -131,7 +139,23 @@ impl CameraController {
       Movement::RotateDown => {
         Self::rotate_camera(camera, right, -self.rotation_speed);
       }
-      Movement::None => {}
+      Movement::MoveLeft => {
+        camera.eye -= right * self.speed;
+        camera.target -= right * self.speed;
+      }
+      Movement::MoveRight => {
+        camera.eye += right * self.speed;
+        camera.target += right * self.speed;
+      }
+      Movement::MoveUp => {
+        camera.eye += camera.up * self.speed;
+        camera.target += camera.up * self.speed;
+      }
+      Movement::MoveDown => {
+        camera.eye -= camera.up * self.speed;
+        camera.target -= camera.up * self.speed;
+      }
+      _ => {} // Movement::None => {}
     }
   }
 
