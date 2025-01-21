@@ -1,5 +1,9 @@
-use crate::{camera::{Camera, CameraController, CameraUniform}, render::Render, CameraParams, SimParams};
-use std::sync::Arc;
+use crate::{
+  camera::{Camera, CameraController, CameraUniform},
+  render::Render,
+  CameraParams, SimParams,
+};
+use std::{sync::Arc, time::Instant};
 use wgpu::util::DeviceExt;
 use wgpu::MemoryHints;
 use winit::{
@@ -197,6 +201,7 @@ async fn start() {
   let event_loop_function = EventLoop::run;
   let mut example = None;
   let sim_params = SimParams::default();
+  let mut tick = Instant::now();
 
   // main runner
   let _ = (event_loop_function)(
@@ -233,6 +238,19 @@ async fn start() {
         {
           exit_requested = true;
         }
+        if let WindowEvent::KeyboardInput {
+          event:
+            KeyEvent {
+              state: ElementState::Pressed,
+              physical_key: PhysicalKey::Code(KeyCode::KeyF),
+              ..
+            },
+          ..
+        } = event
+        {
+          let delta = tick.elapsed();
+          println!("delta: {:?}, fps: {:.2}", delta, 1.0 / delta.as_secs_f32());
+        }
         if exit_requested {
           target.exit();
         } else if !context.input(&event) {
@@ -243,6 +261,7 @@ async fn start() {
               if example.is_none() {
                 return;
               }
+              tick = Instant::now();
               context.update();
               if let Some(example) = &mut example {
                 let frame = surface.acquire(&context);
