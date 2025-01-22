@@ -28,9 +28,9 @@ impl Default for SimParams {
       num_particles: 1e4 as u32,
       particles_per_group: 64,
       triangle_size: 0.002f32,
-      num_galaxies: 4,
+      num_galaxies: 1,
       distance_between_galaxies: 0.5,
-      galaxy_velocity: 0.3, // really only useful when num_galaxies > 1
+      galaxy_velocity: 0.0, // really only useful when num_galaxies > 1
     }
   }
 }
@@ -57,6 +57,12 @@ impl Default for SpiralGalaxyParams {
       width: 0.4,
     }
   }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum GalaxyType {
+  Spiral,
+  Elliptical,
 }
 
 pub struct CameraParams {

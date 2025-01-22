@@ -1,10 +1,10 @@
-use crate::{Particle, SimParams, SpiralGalaxyParams};
+use crate::{GalaxyType, Particle, SimParams, SpiralGalaxyParams};
 use cgmath::{InnerSpace, Vector3};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 use std::f32::consts::PI;
 
-pub fn create_galaxies(sim_params: &SimParams) -> Vec<Particle> {
+pub fn create_galaxies(galaxy_type: GalaxyType, sim_params: &SimParams) -> Vec<Particle> {
   let mut rng = SmallRng::seed_from_u64(42);
   let mut particles = Vec::with_capacity(sim_params.num_particles as usize);
   for i in 0..sim_params.num_galaxies {
@@ -25,17 +25,134 @@ pub fn create_galaxies(sim_params: &SimParams) -> Vec<Particle> {
       )
     }
     println!("center: {:?}", center);
-    spiral(
-      &mut rng,
-      &mut particles,
-      sim_params.num_particles,
-      sim_params.gravity,
-      &velocity,
-      &center,
-      sim_params.central_mass,
-    );
+    match galaxy_type {
+      GalaxyType::Elliptical => elliptical(
+        &mut rng,
+        &mut particles,
+        sim_params.num_particles,
+        &velocity,
+        &center,
+        sim_params.central_mass,
+      ),
+      GalaxyType::Spiral => spiral(
+        &mut rng,
+        &mut particles,
+        sim_params.num_particles,
+        sim_params.gravity,
+        &velocity,
+        &center,
+        sim_params.central_mass,
+      ),
+    }
   }
   particles
+}
+
+fn elliptical(
+  rng: &mut SmallRng,
+  particles: &mut Vec<Particle>,
+  num_particles: u32,
+  velocity: &Vector3<f32>,
+  center: &Vector3<f32>,
+  central_mass: f32,
+) {
+  particles.push(Particle {
+    pos: [center.x, center.y, center.z],
+    vel: [velocity.x, velocity.y, velocity.z],
+    acc: [0.0; 3],
+    mass: central_mass,
+  });
+
+  let bulge_fraction: f32 = 0.4;
+  let bulge_scale_radius: f32 = 0.15;
+  let disk_scale_radius: f32 = 0.3;
+  let disk_scale_height: f32 = 0.02;
+  let rotation_speed_factor: f32 = 5.0;
+  let max_velocity_radius = 0.3;
+  let flat_velocity = 0.5;
+
+  // Generate particles
+  for _ in 1..num_particles {
+    let is_bulge = rng.gen::<f32>() < bulge_fraction;
+
+    let pos = if is_bulge {
+      // Generate bulge particle with spherical distribution
+      loop {
+        let r = -bulge_scale_radius * rng.gen::<f32>().ln();
+        let theta = rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
+        let phi = (2.0 * rng.gen::<f32>() - 1.0).acos();
+
+        let x = r * phi.sin() * theta.cos();
+        let y = r * phi.sin() * theta.sin();
+        let z = r * phi.cos();
+
+        let pos = Vector3::new(x, y, z);
+        if pos.magnitude() <= 0.6 {
+          break pos;
+        }
+      }
+    } else {
+      // Generate disk particle with exponential distribution
+      loop {
+        let r = -disk_scale_radius * rng.gen::<f32>().ln();
+        let theta = rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
+        let z =
+          disk_scale_height * (2.0 * rng.gen::<f32>() - 1.0) * (-rng.gen::<f32>().ln()).sqrt();
+
+        let x = r * theta.cos();
+        let y = r * theta.sin();
+
+        let pos = Vector3::new(x, y, z);
+        if pos.magnitude() <= 0.6 && pos.magnitude() >= 0.02 {
+          break pos;
+        }
+      }
+    };
+
+    let relative_pos = pos;
+    let final_pos = pos + *center;
+
+    let vel = {
+      let rotation_dir = Vector3::new(-relative_pos.y, relative_pos.x, 0.0).normalize();
+      let distance = relative_pos.magnitude();
+
+      // Calculate base rotation speed
+      let rotation_speed = if distance <= max_velocity_radius {
+        rotation_speed_factor * distance
+      } else {
+        let transition = (distance - max_velocity_radius) / max_velocity_radius;
+        let smooth_factor = (-transition * std::f32::consts::PI).cos() * 0.5 + 0.5;
+        flat_velocity * smooth_factor
+          + (rotation_speed_factor * max_velocity_radius) * (1.0 - smooth_factor)
+      };
+
+      // Add more random motion for bulge particles
+      let variation = if is_bulge {
+        Vector3::new(
+          rng.gen::<f32>() * 0.15 - 0.075,
+          rng.gen::<f32>() * 0.15 - 0.075,
+          rng.gen::<f32>() * 0.15 - 0.075,
+        )
+      } else {
+        Vector3::new(
+          rng.gen::<f32>() * 0.05 - 0.025,
+          rng.gen::<f32>() * 0.05 - 0.025,
+          rng.gen::<f32>() * 0.01 - 0.005,
+        )
+      };
+
+      rotation_dir * rotation_speed + variation + velocity
+    };
+
+    let mass = 1.0;
+
+    particles.push(Particle {
+      pos: [final_pos.x, final_pos.y, final_pos.z],
+      vel: [vel.x, vel.y, vel.z],
+      acc: [0.0; 3],
+      mass,
+    });
+  }
 }
 
 fn spiral(
