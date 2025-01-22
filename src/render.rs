@@ -1,4 +1,4 @@
-use crate::{initialize, GalaxyType, Particle, SimParams};
+use crate::{initialize, Particle, SimParams};
 use std::borrow::Cow;
 use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 
@@ -156,8 +156,7 @@ impl Render {
       contents: bytemuck::bytes_of(&vertex_buffer_data),
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
-    let galaxy_type = GalaxyType::Elliptical;
-    let initial_particle_data = initialize::create_galaxies(galaxy_type, &sim_params);
+    let initial_particle_data = initialize::create_galaxies(&sim_params);
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
 

@@ -59,12 +59,6 @@ impl Default for SpiralGalaxyParams {
   }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum GalaxyType {
-  Spiral,
-  Elliptical,
-}
-
 pub struct CameraParams {
   pub speed: f32,
   pub rotational_speed: f32,

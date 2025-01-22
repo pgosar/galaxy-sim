@@ -1,10 +1,10 @@
-use crate::{GalaxyType, Particle, SimParams, SpiralGalaxyParams};
+use crate::{Particle, SimParams, SpiralGalaxyParams};
 use cgmath::{InnerSpace, Vector3};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 use std::f32::consts::PI;
 
-pub fn create_galaxies(galaxy_type: GalaxyType, sim_params: &SimParams) -> Vec<Particle> {
+pub fn create_galaxies(sim_params: &SimParams) -> Vec<Particle> {
   let mut rng = SmallRng::seed_from_u64(42);
   let mut particles = Vec::with_capacity(sim_params.num_particles as usize);
   for i in 0..sim_params.num_galaxies {
@@ -25,69 +25,17 @@ pub fn create_galaxies(galaxy_type: GalaxyType, sim_params: &SimParams) -> Vec<P
       )
     }
     println!("center: {:?}", center);
-    match galaxy_type {
-      GalaxyType::Elliptical => elliptical(
-        &mut rng,
-        &mut particles,
-        sim_params.num_particles,
-        sim_params.gravity,
-        &velocity,
-        &center,
-        sim_params.central_mass,
-      ),
-      GalaxyType::Spiral => spiral(
-        &mut rng,
-        &mut particles,
-        sim_params.num_particles,
-        sim_params.gravity,
-        &velocity,
-        &center,
-        sim_params.central_mass,
-      ),
-    }
+    spiral(
+      &mut rng,
+      &mut particles,
+      sim_params.num_particles,
+      sim_params.gravity,
+      &velocity,
+      &center,
+      sim_params.central_mass,
+    );
   }
   particles
-}
-
-fn elliptical(
-  rng: &mut SmallRng,
-  particles: &mut Vec<Particle>,
-  num_particles: u32,
-  gravity: f32,
-  velocity: &Vector3<f32>,
-  center: &Vector3<f32>,
-  central_mass: f32,
-) {
-  particles.push(Particle {
-    pos: [center.x, center.y, center.z],
-    vel: [velocity.x, velocity.y, velocity.z],
-    acc: [0.0; 3],
-    mass: central_mass,
-  });
-  for _ in 1..num_particles {
-    let mut pos = loop {
-      let x = rng.gen::<f32>() * 2.0 - 1.0;
-      let y = rng.gen::<f32>() * 2.0 - 1.0;
-      let z = (rng.gen::<f32>() * 2.0 - 1.0) * 0.1;
-      let pos = Vector3::new(x, y, z);
-      if pos.magnitude() <= 0.5 && pos.magnitude() >= 0.02 {
-        break pos;
-      }
-    };
-    pos *= pos.magnitude();
-    pos += *center;
-    let vel = {
-      let speed = (gravity / pos.magnitude()).sqrt();
-      pos.cross(Vector3::unit_z()).normalize() * speed + velocity
-    };
-
-    particles.push(Particle {
-      pos: [pos.x, pos.y, pos.z],
-      vel: [vel.x, vel.y, vel.z],
-      acc: [0.0; 3],
-      mass: 1.0,
-    });
-  }
 }
 
 fn spiral(
@@ -108,7 +56,7 @@ fn spiral(
   let galaxy_params = SpiralGalaxyParams::default();
   for i in 1..num_particles {
     let (pos, vel, mass) = if rng.gen::<f32>() < 0.2 {
-      create_bulge_particle(rng, gravity, &galaxy_params, &center, &velocity)
+      create_bulge_particle(rng, gravity, &galaxy_params, center, velocity)
     } else {
       create_arm_particle(
         (i - 1) as f32,
@@ -116,8 +64,8 @@ fn spiral(
         num_particles,
         gravity,
         &galaxy_params,
-        &center,
-        &velocity,
+        center,
+        velocity,
       )
     };
 
