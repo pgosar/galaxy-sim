@@ -36,6 +36,7 @@ pub fn create_galaxies(sim_params: &SimParams) -> Vec<Particle> {
       sim_params.calibrate,
       sim_params.halo_velocity,
       sim_params.halo_radius,
+      i,
     );
   }
   particles
@@ -53,12 +54,14 @@ fn elliptical(
   softening: f32,
   halo_velocity: f32,
   halo_radius: f32,
+  galaxy_id: u32,
 ) {
   particles.push(Particle {
     pos: [center.x, center.y, center.z],
     vel: [velocity.x, velocity.y, velocity.z],
     acc: [0.0; 3],
     mass: central_mass,
+    galaxy_id,
   });
 
   let bulge_fraction: f32 = 0.4;
@@ -143,6 +146,7 @@ fn elliptical(
       vel: [vel.x, vel.y, vel.z],
       acc: [0.0; 3],
       mass,
+      galaxy_id,
     });
   }
 }

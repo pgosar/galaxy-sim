@@ -24,7 +24,7 @@ pub struct SimParams {
 impl Default for SimParams {
   fn default() -> Self {
     Self {
-      delta_t: 0.0005,
+      delta_t: 0.001,
       gravity: 1e-6,
       calibrate: 0.01,
       central_mass: 1_000_000.0,
@@ -33,7 +33,7 @@ impl Default for SimParams {
       triangle_size: 0.002f32,
       num_galaxies: 1,
       distance_between_galaxies: 0.5,
-      galaxy_velocity: 0.0, // really only useful when num_galaxies > 1
+      galaxy_velocity: 0.00005, // really only useful when num_galaxies > 1
       halo_velocity: 2.0,
       halo_radius: 2.0,
       time: 0.0,
@@ -62,4 +62,5 @@ pub struct Particle {
   pub vel: [f32; 3],
   pub acc: [f32; 3],
   pub mass: f32,
+  pub galaxy_id: u32,
 }

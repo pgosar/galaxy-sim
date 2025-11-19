@@ -1,3 +1,15 @@
+use clap::Parser;
+
+/// Galaxy simulation with N-body physics
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+  /// Number of galaxies to simulate
+  #[arg(short, long, default_value_t = 1)]
+  galaxies: u32,
+}
+
 fn main() {
-  galaxy_sim::state::run();
+  let args = Args::parse();
+  galaxy_sim::state::run(args.galaxies);
 }

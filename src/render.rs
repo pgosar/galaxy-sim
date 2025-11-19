@@ -110,12 +110,18 @@ impl Render {
     let particle_buffer = wgpu::VertexBufferLayout {
       array_stride: std::mem::size_of::<Particle>() as u64,
       step_mode: wgpu::VertexStepMode::Instance,
-      attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32],
+      attributes: &wgpu::vertex_attr_array![
+        0 => Float32, 1 => Float32, 2 => Float32,   // pos[3]
+        3 => Float32, 4 => Float32, 5 => Float32,   // vel[3]
+        6 => Float32, 7 => Float32, 8 => Float32,   // acc[3]
+        9 => Float32,                                // mass
+        10 => Uint32                                 // galaxy_id
+      ],
     };
     let vertex_buffer = wgpu::VertexBufferLayout {
       array_stride: 3 * 4, // vertex data
       step_mode: wgpu::VertexStepMode::Vertex,
-      attributes: &wgpu::vertex_attr_array![3 => Float32x3],
+      attributes: &wgpu::vertex_attr_array![11 => Float32x3],
     };
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
       label: Some("Render Pipeline"),

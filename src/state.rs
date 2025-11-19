@@ -195,7 +195,7 @@ impl State {
   }
 }
 
-async fn start() {
+async fn start(galaxy_count: u32) {
   env_logger::init();
   let window_loop = EventLoopWrapper::new("Galaxy Sim");
   let mut surface = SurfaceWrapper::new();
@@ -203,6 +203,7 @@ async fn start() {
   let event_loop_function = EventLoop::run;
   let mut example = None;
   let mut sim_params = SimParams::default();
+  sim_params.num_galaxies = galaxy_count;
   let mut tick = Instant::now();
 
   // main runner
@@ -292,6 +293,6 @@ async fn start() {
   );
 }
 
-pub fn run() {
-  pollster::block_on(start());
+pub fn run(galaxy_count: u32) {
+  pollster::block_on(start(galaxy_count));
 }

@@ -2,7 +2,8 @@ struct Particle {
     pos: array<f32, 3>,
     vel: array<f32, 3>,
     acc: array<f32, 3>,
-    mass: f32
+    mass: f32,
+    galaxy_id: u32,
 };
 
 struct SimParams {
@@ -65,6 +66,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         array<f32, 3>(position.x, position.y, position.z),
         array<f32, 3>(velocity.x, velocity.y, velocity.z),
         array<f32, 3>(newAcceleration.x, newAcceleration.y, newAcceleration.z),
-        currentParticle.mass
+        currentParticle.mass,
+        currentParticle.galaxy_id
     );
 }
