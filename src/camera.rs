@@ -155,7 +155,7 @@ impl CameraController {
         camera.eye -= camera.up * self.speed;
         camera.target -= camera.up * self.speed;
       }
-      _ => {} // Movement::None => {}
+      Movement::None => {} // Movement::None => {}
     }
   }
 

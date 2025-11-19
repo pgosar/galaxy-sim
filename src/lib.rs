@@ -16,6 +16,9 @@ pub struct SimParams {
   num_galaxies: u32,
   distance_between_galaxies: f32,
   galaxy_velocity: f32,
+  halo_velocity: f32,
+  halo_radius: f32,
+  time: f32,
 }
 
 impl Default for SimParams {
@@ -24,45 +27,18 @@ impl Default for SimParams {
       delta_t: 0.0005,
       gravity: 1e-6,
       calibrate: 0.01,
-      central_mass: 1500000.0,
-      num_particles: 1e4 as u32,
+      central_mass: 1_000_000.0,
+      num_particles: 10_000,
       particles_per_group: 64,
       triangle_size: 0.002f32,
       num_galaxies: 1,
       distance_between_galaxies: 0.5,
       galaxy_velocity: 0.0, // really only useful when num_galaxies > 1
+      halo_velocity: 2.0,
+      halo_radius: 2.0,
+      time: 0.0,
     }
   }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct SpiralGalaxyParams {
-  pub arms: u32,
-  pub spiral_size: f32,
-  pub spiral_width: f32,
-  pub spiral_length: f32,
-  pub bulge_std: f32,
-  pub width: f32,
-}
-
-impl Default for SpiralGalaxyParams {
-  fn default() -> Self {
-    Self {
-      arms: 2,
-      spiral_size: 0.2,
-      spiral_width: 0.025,
-      spiral_length: 4.0,
-      bulge_std: 0.1,
-      width: 0.4,
-    }
-  }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum GalaxyType {
-  Spiral,
-  Elliptical,
 }
 
 pub struct CameraParams {

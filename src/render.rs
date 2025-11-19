@@ -1,4 +1,4 @@
-use crate::{initialize, GalaxyType, Particle, SimParams};
+use crate::{initialize, Particle, SimParams};
 use std::borrow::Cow;
 use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 
@@ -10,10 +10,12 @@ pub struct Render {
   render_pipeline: wgpu::RenderPipeline,
   work_group_count: u32,
   frame_num: usize,
+  sim_param_buffer: wgpu::Buffer,
 }
 
 impl Render {
   #[must_use]
+  #[allow(clippy::too_many_lines)]
   pub fn init(
     config: &wgpu::SurfaceConfiguration,
     _adapter: &wgpu::Adapter,
@@ -156,8 +158,7 @@ impl Render {
       contents: bytemuck::bytes_of(&vertex_buffer_data),
       usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
-    let galaxy_type = GalaxyType::Elliptical;
-    let initial_particle_data = initialize::create_galaxies(galaxy_type, &sim_params);
+    let initial_particle_data = initialize::create_galaxies(&sim_params);
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
 
@@ -192,6 +193,11 @@ impl Render {
         label: Some(&format!("Particle Bind Group {i}")),
       }));
     }
+    #[allow(
+      clippy::cast_possible_truncation,
+      clippy::cast_sign_loss,
+      clippy::cast_precision_loss
+    )]
     let work_group_count = (((sim_params.num_particles * sim_params.num_galaxies) as f32)
       / (sim_params.particles_per_group as f32))
       .ceil() as u32;
@@ -203,6 +209,7 @@ impl Render {
       render_pipeline,
       work_group_count,
       frame_num: 0,
+      sim_param_buffer,
     }
   }
 
@@ -232,6 +239,13 @@ impl Render {
     let mut command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
       label: Some("Command Encoder Descriptor"),
     });
+
+    queue.write_buffer(
+      &self.sim_param_buffer,
+      0,
+      bytemuck::cast_slice(&[*sim_params]),
+    );
+
     // Compute pass
     {
       let mut cpass = command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

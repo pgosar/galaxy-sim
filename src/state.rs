@@ -73,7 +73,9 @@ impl SurfaceWrapper {
     }
   }
 
-  fn suspend(&mut self) {}
+  fn suspend(&mut self) {
+    // No-op: surface cleanup handled by drop
+  }
 
   fn config(&self) -> &wgpu::SurfaceConfiguration {
     self.config.as_ref().unwrap()
@@ -200,7 +202,7 @@ async fn start() {
   let mut context = State::init(&surface, &window_loop.window.inner_size()).await;
   let event_loop_function = EventLoop::run;
   let mut example = None;
-  let sim_params = SimParams::default();
+  let mut sim_params = SimParams::default();
   let mut tick = Instant::now();
 
   // main runner
@@ -262,6 +264,7 @@ async fn start() {
                 return;
               }
               tick = Instant::now();
+              sim_params.time += sim_params.delta_t;
               context.update();
               if let Some(example) = &mut example {
                 let frame = surface.acquire(&context);
