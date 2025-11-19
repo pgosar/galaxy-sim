@@ -15,12 +15,7 @@ struct SimParams {
 @group(0) @binding(1) var<storage, read> particlesSrc: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> particlesDst: array<Particle>;
 
-fn calculate_halo_force(distance: f32) -> f32 {
-    let halo_scale = 0.2;
-    let halo_radius = 0.2;
-    let transition = smoothstep(0.0, halo_radius, distance);
-    return halo_scale * transition;
-}
+
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
@@ -57,12 +52,13 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         }
 
         // Calculate gravitational force
-        let standard_force = params.g * otherParticle.mass / (r * r * r + params.e);
-        let halo_contribution = calculate_halo_force(r);
-        let total_force = standard_force + halo_contribution;
-        newAcceleration += total_force * normalize(displacement);
+        // Calculate gravitational force
+        // Plummer potential: F = GM * r / (r^2 + e)^1.5
+        // Vector form: F_vec = (GM / (r^2 + e)^1.5) * displacement
+        let dist_sq = r * r + params.e;
+        let force_magnitude = params.g * otherParticle.mass / (dist_sq * sqrt(dist_sq));
+        newAcceleration += force_magnitude * displacement;
     }
-    newAcceleration *= params.dt;
     velocity += newAcceleration * params.dt / 2.0;
 
     particlesDst[particleIndex] = Particle(

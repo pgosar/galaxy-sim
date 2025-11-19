@@ -30,9 +30,11 @@ pub fn create_galaxies(galaxy_type: GalaxyType, sim_params: &SimParams) -> Vec<P
         &mut rng,
         &mut particles,
         sim_params.num_particles,
+        sim_params.gravity,
         &velocity,
         &center,
         sim_params.central_mass,
+        sim_params.calibrate,
       ),
       GalaxyType::Spiral => spiral(
         &mut rng,
@@ -52,9 +54,11 @@ fn elliptical(
   rng: &mut SmallRng,
   particles: &mut Vec<Particle>,
   num_particles: u32,
+  gravity: f32,
   velocity: &Vector3<f32>,
   center: &Vector3<f32>,
   central_mass: f32,
+  softening: f32,
 ) {
   particles.push(Particle {
     pos: [center.x, center.y, center.z],
@@ -67,9 +71,6 @@ fn elliptical(
   let bulge_scale_radius: f32 = 0.15;
   let disk_scale_radius: f32 = 0.3;
   let disk_scale_height: f32 = 0.02;
-  let rotation_speed_factor: f32 = 5.0;
-  let max_velocity_radius = 0.3;
-  let flat_velocity = 0.5;
 
   // Generate particles
   for _ in 1..num_particles {
@@ -115,17 +116,9 @@ fn elliptical(
     let vel = {
       let rotation_dir = Vector3::new(-relative_pos.y, relative_pos.x, 0.0).normalize();
       let distance = relative_pos.magnitude();
-
-      // Calculate base rotation speed
-      let rotation_speed = if distance <= max_velocity_radius {
-        rotation_speed_factor * distance
-      } else {
-        let transition = (distance - max_velocity_radius) / max_velocity_radius;
-        let smooth_factor = (-transition * std::f32::consts::PI).cos() * 0.5 + 0.5;
-        flat_velocity * smooth_factor
-          + (rotation_speed_factor * max_velocity_radius) * (1.0 - smooth_factor)
-      };
-
+      let dist_sq = distance * distance + softening;
+      let rotation_speed =
+        (gravity * central_mass * distance * distance / (dist_sq * dist_sq.sqrt())).sqrt();
       // Add more random motion for bulge particles
       let variation = if is_bulge {
         Vector3::new(

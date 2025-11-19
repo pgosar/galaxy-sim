@@ -21,9 +21,9 @@ pub struct SimParams {
 impl Default for SimParams {
   fn default() -> Self {
     Self {
-      delta_t: 0.0016,
+      delta_t: 0.0005,
       gravity: 1e-6,
-      calibrate: 1e-4,
+      calibrate: 0.01,
       central_mass: 1500000.0,
       num_particles: 1e4 as u32,
       particles_per_group: 64,
