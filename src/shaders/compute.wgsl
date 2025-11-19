@@ -10,6 +10,16 @@ struct SimParams {
     dt: f32,
     g: f32,
     e: f32,
+    central_mass: f32,
+    num_particles: u32,
+    particles_per_group: u32,
+    triangle_size: f32,
+    num_galaxies: u32,
+    distance_between_galaxies: f32,
+    galaxy_velocity: f32,
+    halo_v: f32,
+    halo_r: f32,
+    damping: f32,
 };
 
 @group(0) @binding(0) var<uniform> params: SimParams;
@@ -61,6 +71,13 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         newAcceleration += force_magnitude * displacement;
     }
     velocity += newAcceleration * params.dt / 2.0;
+    
+    // Dynamical Friction:
+    // Real dynamical friction: F_drag ∝ -v * ρ * ln(Λ) * M
+    // Approximation: F_drag ≈ -damping * v * v_mag
+    let v_mag = length(velocity);
+    let drag_factor = 1.0 - params.damping * v_mag * params.dt;
+    velocity *= max(drag_factor, 0.9);  // Clamp to prevent over-damping
 
     particlesDst[particleIndex] = Particle(
         array<f32, 3>(position.x, position.y, position.z),

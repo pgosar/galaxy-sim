@@ -18,6 +18,7 @@ pub struct SimParams {
   galaxy_velocity: f32,
   halo_velocity: f32,
   halo_radius: f32,
+  damping: f32,
   time: f32,
 }
 
@@ -36,6 +37,7 @@ impl Default for SimParams {
       galaxy_velocity: 0.00005, // really only useful when num_galaxies > 1
       halo_velocity: 2.0,
       halo_radius: 2.0,
+      damping: 0.15, // Dynamical friction coefficient
       time: 0.0,
     }
   }

@@ -150,5 +150,3 @@ fn elliptical(
     });
   }
 }
-
-
