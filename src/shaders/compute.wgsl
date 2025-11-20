@@ -72,12 +72,19 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     }
     velocity += newAcceleration * params.dt / 2.0;
     
-    // Dynamical Friction:
-    // Real dynamical friction: F_drag ∝ -v * ρ * ln(Λ) * M
-    // Approximation: F_drag ≈ -damping * v * v_mag
-    let v_mag = length(velocity);
-    let drag_factor = 1.0 - params.damping * v_mag * params.dt;
-    velocity *= max(drag_factor, 0.9);  // Clamp to prevent over-damping
+    // Dynamical Friction 
+    if (currentParticle.mass == params.central_mass) {
+        for (var i: u32 = 0u; i < totalParticles; i++) {
+            let otherParticle = particlesSrc[i];
+            if (otherParticle.mass == params.central_mass && 
+                otherParticle.galaxy_id != currentParticle.galaxy_id) {
+                let otherVelocity = vec3<f32>(otherParticle.vel[0], otherParticle.vel[1], otherParticle.vel[2]);
+                let relativeVelocity = velocity - otherVelocity;
+                let frictionForce = -params.damping * relativeVelocity;
+                velocity += frictionForce * params.dt;
+            }
+        }
+    }
 
     particlesDst[particleIndex] = Particle(
         array<f32, 3>(position.x, position.y, position.z),

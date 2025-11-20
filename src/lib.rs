@@ -27,17 +27,17 @@ impl Default for SimParams {
     Self {
       delta_t: 0.001,
       gravity: 1e-6,
-      calibrate: 0.01,
-      central_mass: 1_000_000.0,
+      calibrate: 0.005,
+      central_mass: 100_000.0,
       num_particles: 10_000,
       particles_per_group: 64,
       triangle_size: 0.002f32,
       num_galaxies: 1,
-      distance_between_galaxies: 0.5,
-      galaxy_velocity: 0.00005, // really only useful when num_galaxies > 1
+      distance_between_galaxies: 0.9, 
+      galaxy_velocity: 0.005,      
       halo_velocity: 2.0,
       halo_radius: 2.0,
-      damping: 0.15, // Dynamical friction coefficient
+      damping: 0.1, 
       time: 0.0,
     }
   }
