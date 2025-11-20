@@ -5,9 +5,9 @@ use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 pub struct Render {
   particle_bind_groups: Vec<wgpu::BindGroup>,
   particle_buffers: Vec<wgpu::Buffer>,
-  vertices_buffer: wgpu::Buffer,
+  vertices_buffer: Option<wgpu::Buffer>,
   compute_pipeline: wgpu::ComputePipeline,
-  render_pipeline: wgpu::RenderPipeline,
+  render_pipeline: Option<wgpu::RenderPipeline>,
   work_group_count: u32,
   frame_num: usize,
   sim_param_buffer: wgpu::Buffer,
@@ -17,11 +17,11 @@ impl Render {
   #[must_use]
   #[allow(clippy::too_many_lines)]
   pub fn init(
-    config: &wgpu::SurfaceConfiguration,
+    config: Option<&wgpu::SurfaceConfiguration>,
     _adapter: &wgpu::Adapter,
     device: &wgpu::Device,
     _queue: &wgpu::Queue,
-    camera_bind_group_layout: &wgpu::BindGroupLayout,
+    camera_bind_group_layout: Option<&wgpu::BindGroupLayout>,
     sim_params: SimParams,
   ) -> Self {
     let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -102,68 +102,75 @@ impl Render {
     // render pipeline stuff
     // ========================================================================
 
-    let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-      label: Some("render"),
-      bind_group_layouts: &[camera_bind_group_layout],
-      push_constant_ranges: &[],
-    });
-    let particle_buffer = wgpu::VertexBufferLayout {
-      array_stride: std::mem::size_of::<Particle>() as u64,
-      step_mode: wgpu::VertexStepMode::Instance,
-      attributes: &wgpu::vertex_attr_array![
-        0 => Float32, 1 => Float32, 2 => Float32,   // pos[3]
-        3 => Float32, 4 => Float32, 5 => Float32,   // vel[3]
-        6 => Float32, 7 => Float32, 8 => Float32,   // acc[3]
-        9 => Float32,                                // mass
-        10 => Uint32                                 // galaxy_id
-      ],
-    };
-    let vertex_buffer = wgpu::VertexBufferLayout {
-      array_stride: 3 * 4, // vertex data
-      step_mode: wgpu::VertexStepMode::Vertex,
-      attributes: &wgpu::vertex_attr_array![11 => Float32x3],
-    };
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-      label: Some("Render Pipeline"),
-      layout: Some(&render_pipeline_layout),
-      vertex: wgpu::VertexState {
-        module: &draw_shader,
-        entry_point: "main_vs",
-        compilation_options: PipelineCompilationOptions::default(),
+    let (render_pipeline, vertices_buffer) = if let (Some(config), Some(camera_layout)) =
+      (config, camera_bind_group_layout)
+    {
+      let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("render"),
+        bind_group_layouts: &[camera_layout],
+        push_constant_ranges: &[],
+      });
+      let particle_buffer = wgpu::VertexBufferLayout {
+        array_stride: std::mem::size_of::<Particle>() as u64,
+        step_mode: wgpu::VertexStepMode::Instance,
+        attributes: &wgpu::vertex_attr_array![
+          0 => Float32, 1 => Float32, 2 => Float32,   // pos[3]
+          3 => Float32, 4 => Float32, 5 => Float32,   // vel[3]
+          6 => Float32, 7 => Float32, 8 => Float32,   // acc[3]
+          9 => Float32,                                // mass
+          10 => Uint32                                 // galaxy_id
+        ],
+      };
+      let vertex_buffer = wgpu::VertexBufferLayout {
+        array_stride: 3 * 4, // vertex data
+        step_mode: wgpu::VertexStepMode::Vertex,
+        attributes: &wgpu::vertex_attr_array![11 => Float32x3],
+      };
+      let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(&render_pipeline_layout),
+        vertex: wgpu::VertexState {
+          module: &draw_shader,
+          entry_point: "main_vs",
+          compilation_options: PipelineCompilationOptions::default(),
 
-        buffers: &[particle_buffer, vertex_buffer],
-      },
-      fragment: Some(wgpu::FragmentState {
-        module: &draw_shader,
-        entry_point: "main_fs",
-        compilation_options: PipelineCompilationOptions::default(),
-        targets: &[Some(config.view_formats[0].into())],
-      }),
-      primitive: wgpu::PrimitiveState::default(),
-      depth_stencil: None,
-      multisample: wgpu::MultisampleState::default(),
-      multiview: None,
-      cache: None,
-    });
-    let vertex_buffer_data = [
-      // First vertex (bottom left)
-      -0.866 * sim_params.triangle_size,
-      -0.5 * sim_params.triangle_size,
-      0.0,
-      // Second vertex (bottom right)
-      0.866 * sim_params.triangle_size,
-      -0.5 * sim_params.triangle_size,
-      0.0,
-      // Third vertex (top)
-      0.0,
-      sim_params.triangle_size,
-      0.0,
-    ];
-    let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-      label: Some("Vertex Buffer"),
-      contents: bytemuck::bytes_of(&vertex_buffer_data),
-      usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-    });
+          buffers: &[particle_buffer, vertex_buffer],
+        },
+        fragment: Some(wgpu::FragmentState {
+          module: &draw_shader,
+          entry_point: "main_fs",
+          compilation_options: PipelineCompilationOptions::default(),
+          targets: &[Some(config.view_formats[0].into())],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+        cache: None,
+      });
+      let vertex_buffer_data = [
+        // First vertex (bottom left)
+        -0.866 * sim_params.triangle_size,
+        -0.5 * sim_params.triangle_size,
+        0.0,
+        // Second vertex (bottom right)
+        0.866 * sim_params.triangle_size,
+        -0.5 * sim_params.triangle_size,
+        0.0,
+        // Third vertex (top)
+        0.0,
+        sim_params.triangle_size,
+        0.0,
+      ];
+      let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::bytes_of(&vertex_buffer_data),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+      });
+      (Some(render_pipeline), Some(vertices_buffer))
+    } else {
+      (None, None)
+    };
     let initial_particle_data = initialize::create_galaxies(&sim_params);
     let mut particle_buffers = Vec::<wgpu::Buffer>::new();
     let mut particle_bind_groups = Vec::<wgpu::BindGroup>::new();
@@ -219,31 +226,9 @@ impl Render {
     }
   }
 
-  pub fn render(
-    &mut self,
-    view: &wgpu::TextureView,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    camera_bind_group: &wgpu::BindGroup,
-    sim_params: &SimParams,
-  ) {
-    let color_attachments = [Some(wgpu::RenderPassColorAttachment {
-      view,
-      resolve_target: None,
-      ops: wgpu::Operations {
-        load: wgpu::LoadOp::Load,
-        store: wgpu::StoreOp::Store,
-      },
-    })];
-    let render_pass_descriptor = wgpu::RenderPassDescriptor {
-      label: Some("Render Pass Descriptor"),
-      color_attachments: &color_attachments,
-      depth_stencil_attachment: None,
-      timestamp_writes: None,
-      occlusion_query_set: None,
-    };
+  pub fn compute(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, sim_params: &SimParams) {
     let mut command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-      label: Some("Command Encoder Descriptor"),
+      label: Some("Compute Command Encoder"),
     });
 
     queue.write_buffer(
@@ -262,17 +247,49 @@ impl Render {
       cpass.set_bind_group(0, &self.particle_bind_groups[self.frame_num % 2], &[]);
       cpass.dispatch_workgroups(self.work_group_count, 1, 1);
     }
-    // Render pass
+    self.frame_num += 1;
+    queue.submit(Some(command_encoder.finish()));
+  }
+
+  pub fn render(
+    &mut self,
+    view: &wgpu::TextureView,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    camera_bind_group: &wgpu::BindGroup,
+    sim_params: &SimParams,
+  ) {
+    self.compute(device, queue, sim_params);
+    let color_attachments = [Some(wgpu::RenderPassColorAttachment {
+      view,
+      resolve_target: None,
+      ops: wgpu::Operations {
+        load: wgpu::LoadOp::Load,
+        store: wgpu::StoreOp::Store,
+      },
+    })];
+    let render_pass_descriptor = wgpu::RenderPassDescriptor {
+      label: Some("Render Pass Descriptor"),
+      color_attachments: &color_attachments,
+      depth_stencil_attachment: None,
+      timestamp_writes: None,
+      occlusion_query_set: None,
+    };
+    let mut command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+      label: Some("Render Command Encoder"),
+    });
+
+    if let (Some(render_pipeline), Some(vertices_buffer)) =
+      (&self.render_pipeline, &self.vertices_buffer)
     {
       let mut rpass = command_encoder.begin_render_pass(&render_pass_descriptor);
-      rpass.set_pipeline(&self.render_pipeline);
+      rpass.set_pipeline(render_pipeline);
       rpass.set_bind_group(0, camera_bind_group, &[]);
-      rpass.set_vertex_buffer(0, self.particle_buffers[(self.frame_num + 1) % 2].slice(..));
-      rpass.set_vertex_buffer(1, self.vertices_buffer.slice(..));
+      rpass.set_vertex_buffer(0, self.particle_buffers[self.frame_num % 2].slice(..));
+      rpass.set_vertex_buffer(1, vertices_buffer.slice(..));
       rpass.draw(0..3, 0..sim_params.num_particles * sim_params.num_galaxies);
     }
-    command_encoder.pop_debug_group();
-    self.frame_num += 1;
+
     queue.submit(Some(command_encoder.finish()));
   }
 }

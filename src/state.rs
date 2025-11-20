@@ -109,7 +109,7 @@ impl State {
     );
   }
 
-  async fn init(surface: &SurfaceWrapper, size: &PhysicalSize<u32>) -> Self {
+  async fn init(surface: Option<&SurfaceWrapper>, size: &PhysicalSize<u32>) -> Self {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
       backends: wgpu::Backends::PRIMARY,
       ..Default::default()
@@ -118,7 +118,7 @@ impl State {
     let adapter = instance
       .request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
-        compatible_surface: surface.surface.as_ref(),
+        compatible_surface: surface.and_then(|s| s.surface.as_ref()),
         force_fallback_adapter: false,
       })
       .await
@@ -195,15 +195,68 @@ impl State {
   }
 }
 
-async fn start(galaxy_count: u32) {
+pub async fn start(galaxy_count: u32, headless: bool) {
   env_logger::init();
-  let window_loop = EventLoopWrapper::new("Galaxy Sim");
-  let mut surface = SurfaceWrapper::new();
-  let mut context = State::init(&surface, &window_loop.window.inner_size()).await;
-  let event_loop_function = EventLoop::run;
-  let mut example = None;
   let mut sim_params = SimParams::default();
   sim_params.num_galaxies = galaxy_count;
+
+  if headless {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+      backends: wgpu::Backends::PRIMARY,
+      ..Default::default()
+    });
+
+    let adapter = instance
+      .request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::default(),
+        compatible_surface: None,
+        force_fallback_adapter: false,
+      })
+      .await
+      .unwrap();
+
+    let (device, queue) = adapter
+      .request_device(
+        &wgpu::DeviceDescriptor {
+          label: Some("Device Descriptor"),
+          required_features: wgpu::Features::empty(),
+          required_limits: wgpu::Limits::default(),
+          memory_hints: MemoryHints::default(),
+        },
+        None,
+      )
+      .await
+      .unwrap();
+
+    let mut renderer = Render::init(None, &adapter, &device, &queue, None, sim_params);
+    let mut tick = Instant::now();
+    let mut frame_count = 0;
+
+    println!("Running in headless mode");
+
+    loop {
+      let delta = tick.elapsed();
+      if delta.as_secs_f32() >= 1.0 {
+        println!(
+          "FPS: {:.2}, Time: {:.2}",
+          frame_count as f32 / delta.as_secs_f32(),
+          sim_params.time
+        );
+        tick = Instant::now();
+        frame_count = 0;
+      }
+
+      sim_params.time += sim_params.delta_t;
+      renderer.compute(&device, &queue, &sim_params);
+      frame_count += 1;
+    }
+  }
+
+  let window_loop = EventLoopWrapper::new("Galaxy Sim");
+  let mut surface = SurfaceWrapper::new();
+  let mut context = State::init(Some(&surface), &window_loop.window.inner_size()).await;
+  let event_loop_function = EventLoop::run;
+  let mut example = None;
   let mut tick = Instant::now();
 
   // main runner
@@ -214,11 +267,11 @@ async fn start(galaxy_count: u32) {
         surface.resume(&context, window_loop.window.clone());
         if example.is_none() {
           example = Some(Render::init(
-            surface.config(),
+            Some(surface.config()),
             &context.adapter,
             &context.device,
             &context.queue,
-            &context.camera_bind_group_layout,
+            Some(&context.camera_bind_group_layout),
             sim_params,
           ));
         }
@@ -293,6 +346,6 @@ async fn start(galaxy_count: u32) {
   );
 }
 
-pub fn run(galaxy_count: u32) {
-  pollster::block_on(start(galaxy_count));
+pub fn run(galaxy_count: u32, headless: bool) {
+  pollster::block_on(start(galaxy_count, headless));
 }
