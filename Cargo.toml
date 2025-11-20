@@ -14,3 +14,4 @@ winit = "0.29"
 cgmath = "0.18"
 rand_distr = "0.4"
 rand = { version = "0.8", features = ["small_rng"] }
+clap_complete = "4.5.61"

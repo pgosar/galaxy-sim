@@ -1,9 +1,9 @@
 features:
 
-command line argument to choose number of galaxies and galaxy types
-be able to randomize types or choose specific ones as a list
-if one type inputted use as default for all
 fps in top corner and other benchmarks
+fix the galaxy collision mechanics
+- need some dampening effect so that the galaxies don't just fly through each other
+- furthermore this should not effect the internal dynamics of the galaxies, so those rings don't form
 
 optimizations:
 barnes hut, jemalloc allocator...
