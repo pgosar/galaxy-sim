@@ -229,26 +229,57 @@ pub async fn start(galaxy_count: u32, headless: bool) {
       .unwrap();
 
     let mut renderer = Render::init(None, &adapter, &device, &queue, None, sim_params);
-    let mut tick = Instant::now();
     let mut frame_count = 0;
+    let mut frame_deltas = Vec::new();
 
-    println!("Running in headless mode");
+    let running = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let r = running.clone();
 
-    loop {
-      let delta = tick.elapsed();
-      if delta.as_secs_f32() >= 1.0 {
+    ctrlc::set_handler(move || {
+      r.store(false, std::sync::atomic::Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    println!("Running in headless mode. Press Ctrl+C to exit.");
+
+    let mut last_frame_time = Instant::now();
+    let mut timer = Instant::now();
+
+    while running.load(std::sync::atomic::Ordering::SeqCst) {
+      let now = Instant::now();
+      let delta = now.duration_since(last_frame_time);
+      last_frame_time = now;
+
+      frame_deltas.push(delta.as_secs_f32());
+
+      if timer.elapsed().as_secs_f32() >= 1.0 {
         println!(
           "FPS: {:.2}, Time: {:.2}",
-          frame_count as f32 / delta.as_secs_f32(),
+          frame_count as f32 / timer.elapsed().as_secs_f32(),
           sim_params.time
         );
-        tick = Instant::now();
+        timer = Instant::now();
         frame_count = 0;
       }
 
       sim_params.time += sim_params.delta_t;
       renderer.compute(&device, &queue, &sim_params);
       frame_count += 1;
+    }
+
+    println!("\nSimulation stopped.");
+    if !frame_deltas.is_empty() {
+      let total_time: f32 = frame_deltas.iter().sum();
+      let avg_fps = frame_deltas.len() as f32 / total_time;
+
+      // find 1% lows
+      frame_deltas.sort_by(|a, b| a.partial_cmp(b).unwrap());
+      let one_percent_index = (frame_deltas.len() as f32 * 0.99) as usize;
+      let low_1_percent_delta = frame_deltas[one_percent_index];
+      let low_1_percent_fps = 1.0 / low_1_percent_delta;
+
+      println!("Average FPS: {:.2}", avg_fps);
+      println!("1% Low FPS:  {:.2}", low_1_percent_fps);
     }
   }
 
