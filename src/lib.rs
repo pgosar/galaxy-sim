@@ -33,8 +33,11 @@ impl Default for SimParams {
       particles_per_group: 64,
       triangle_size: 0.002f32,
       num_galaxies: 1,
-      distance_between_galaxies: 0.9, 
-      galaxy_velocity: 0.005,      
+      distance_between_galaxies: 0.9,
+      // Tangential speed for the initial orbit. The analytic halos dominate the
+      // pair's gravity, so ~0.6x of the pair's circular speed gives an eccentric
+      // prograde merger with long tidal tails instead of a head-on plunge.
+      galaxy_velocity: 0.6,
       halo_velocity: 2.0,
       halo_radius: 2.0,
       damping: 0.1, 
