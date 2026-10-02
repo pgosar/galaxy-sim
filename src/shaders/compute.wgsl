@@ -28,7 +28,7 @@ struct SimParams {
 
 
 
-@compute @workgroup_size(64)
+@compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let totalParticles = arrayLength(&particlesSrc);
     let particleIndex = global_invocation_id.x;
