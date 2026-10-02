@@ -25,12 +25,12 @@ pub struct SimParams {
 impl Default for SimParams {
   fn default() -> Self {
     Self {
-      delta_t: 0.001,
+      delta_t: 0.005,
       gravity: 1e-6,
       calibrate: 0.005,
       central_mass: 100_000.0,
       num_particles: 10_000,
-      particles_per_group: 64,
+      particles_per_group: 256,
       triangle_size: 0.002f32,
       num_galaxies: 1,
       distance_between_galaxies: 0.9,
