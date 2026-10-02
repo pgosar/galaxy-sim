@@ -70,6 +70,35 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         let force_magnitude = params.g * otherParticle.mass / (dist_sq * sqrt(dist_sq));
         newAcceleration += force_magnitude * displacement;
     }
+
+    // Analytic dark-matter halo, matching the rotation curve in initialize.rs:
+    // v_circ^2 = V_h^2 r^2 / (r^2 + R_c^2), so a = -V_h^2 d / (|d|^2 + R_c^2).
+    // Rigid halo co-moves with its galaxy's central particle through the merger.
+    let halo_v_sq = params.halo_v * params.halo_v;
+    let halo_r_sq = params.halo_r * params.halo_r;
+    let is_center = currentParticle.mass == params.central_mass;
+    for (var g: u32 = 0u; g < params.num_galaxies; g++) {
+        // Center particle is the first of each galaxy's block.
+        let centerParticle = particlesSrc[g * params.num_particles];
+        if (centerParticle.mass != params.central_mass) {
+            continue;
+        }
+        // A rigid halo does not pull its own center.
+        if (is_center && centerParticle.galaxy_id == currentParticle.galaxy_id) {
+            continue;
+        }
+        let centerPos = vec3<f32>(
+            centerParticle.pos[0],
+            centerParticle.pos[1],
+            centerParticle.pos[2]
+        );
+        let d = position - centerPos;
+        let halo_dist_sq = dot(d, d);
+        if (halo_dist_sq < 0.00000001) {
+            continue;
+        }
+        newAcceleration -= halo_v_sq * d / (halo_dist_sq + halo_r_sq);
+    }
     velocity += newAcceleration * params.dt / 2.0;
     
     // Dynamical Friction 
