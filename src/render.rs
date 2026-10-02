@@ -1,4 +1,4 @@
-use crate::{initialize, Particle, SimParams};
+use crate::{barnes_hut::BarnesHut, initialize, Particle, SimParams};
 use std::borrow::Cow;
 use wgpu::{util::DeviceExt, PipelineCompilationOptions};
 
@@ -11,6 +11,7 @@ pub struct Render {
   work_group_count: u32,
   frame_num: usize,
   sim_param_buffer: wgpu::Buffer,
+  barnes_hut: Option<BarnesHut>,
 }
 
 impl Render {
@@ -20,9 +21,10 @@ impl Render {
     config: Option<&wgpu::SurfaceConfiguration>,
     _adapter: &wgpu::Adapter,
     device: &wgpu::Device,
-    _queue: &wgpu::Queue,
+    queue: &wgpu::Queue,
     camera_bind_group_layout: Option<&wgpu::BindGroupLayout>,
     sim_params: SimParams,
+    exact: bool,
   ) -> Self {
     let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
       label: Some("compute_shader"),
@@ -215,6 +217,19 @@ impl Render {
     let work_group_count = (((sim_params.num_particles * sim_params.num_galaxies) as f32)
       / (sim_params.particles_per_group as f32))
       .ceil() as u32;
+    // Barnes-Hut tree solver; exact O(N^2) when --exact is passed.
+    let barnes_hut = if exact {
+      None
+    } else {
+      Some(BarnesHut::init(
+        device,
+        queue,
+        &sim_params,
+        &initial_particle_data,
+        &sim_param_buffer,
+        &particle_buffers,
+      ))
+    };
     Render {
       particle_bind_groups,
       particle_buffers,
@@ -224,19 +239,26 @@ impl Render {
       work_group_count,
       frame_num: 0,
       sim_param_buffer,
+      barnes_hut,
     }
   }
 
   pub fn compute(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, sim_params: &SimParams) {
-    let mut command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-      label: Some("Compute Command Encoder"),
-    });
-
     queue.write_buffer(
       &self.sim_param_buffer,
       0,
       bytemuck::cast_slice(&[*sim_params]),
     );
+
+    if let Some(barnes_hut) = &mut self.barnes_hut {
+      barnes_hut.step(device, queue, self.frame_num);
+      self.frame_num += 1;
+      return;
+    }
+
+    let mut command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+      label: Some("Compute Command Encoder"),
+    });
 
     // Compute pass
     {

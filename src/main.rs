@@ -27,6 +27,12 @@ struct Args {
   /// Directory for snapshots and dumps
   #[arg(long, default_value = "snapshots")]
   out_dir: String,
+  /// Use exact O(N^2) force computation instead of Barnes-Hut (for validation)
+  #[arg(long, default_value_t = false)]
+  exact: bool,
+  /// Barnes-Hut opening angle (larger = faster, less accurate)
+  #[arg(long)]
+  theta: Option<f32>,
   #[command(subcommand)]
   command: Option<Commands>,
 }
@@ -59,5 +65,7 @@ fn main() {
     dump_every: args.dump_every,
     max_steps: args.max_steps,
     out_dir: args.out_dir,
+    exact: args.exact,
+    theta: args.theta,
   });
 }

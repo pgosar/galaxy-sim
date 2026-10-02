@@ -202,6 +202,9 @@ pub async fn start(config: RunConfig) {
   if let Some(particles) = config.particles {
     sim_params.num_particles = particles;
   }
+  if let Some(theta) = config.theta {
+    sim_params.theta = theta;
+  }
   let headless = config.headless;
 
   if headless {
@@ -246,6 +249,7 @@ pub async fn start(config: RunConfig) {
       &queue,
       headless_render.as_ref().map(|hr| &hr.camera_layout),
       sim_params,
+      config.exact,
     );
     let mut frame_count = 0;
     let mut frame_deltas = Vec::new();
@@ -306,6 +310,10 @@ pub async fn start(config: RunConfig) {
       } else {
         renderer.compute(&device, &queue, &sim_params);
       }
+      // Block until the GPU finishes this step: steps are sequential anyway
+      // (each reads the previous step's buffer), and without this the FPS
+      // counter would only measure CPU submission throughput.
+      device.poll(wgpu::Maintain::Wait);
       if config.dump_every > 0 && step.is_multiple_of(config.dump_every) {
         dump_particles(
           &device,
@@ -358,6 +366,7 @@ pub async fn start(config: RunConfig) {
             &context.queue,
             Some(&context.camera_bind_group_layout),
             sim_params,
+            config.exact,
           ));
         }
       }
@@ -617,12 +626,21 @@ fn dump_particles(
   device.poll(wgpu::Maintain::Wait);
   let data = slice.get_mapped_range();
   let particles: &[Particle] = bytemuck::cast_slice(&data);
-  let mut csv = String::with_capacity(total * 48);
-  csv.push_str("x,y,z,vx,vy,vz,galaxy_id\n");
+  let mut csv = String::with_capacity(total * 64);
+  csv.push_str("x,y,z,vx,vy,vz,ax,ay,az,galaxy_id\n");
   for p in particles {
     csv.push_str(&format!(
-      "{},{},{},{},{},{},{}\n",
-      p.pos[0], p.pos[1], p.pos[2], p.vel[0], p.vel[1], p.vel[2], p.galaxy_id
+      "{},{},{},{},{},{},{},{},{},{}\n",
+      p.pos[0],
+      p.pos[1],
+      p.pos[2],
+      p.vel[0],
+      p.vel[1],
+      p.vel[2],
+      p.acc[0],
+      p.acc[1],
+      p.acc[2],
+      p.galaxy_id
     ));
   }
   drop(data);

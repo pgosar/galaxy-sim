@@ -1,3 +1,4 @@
+pub mod barnes_hut;
 pub mod camera;
 pub mod initialize;
 pub mod render;
@@ -20,6 +21,7 @@ pub struct SimParams {
   halo_radius: f32,
   damping: f32,
   time: f32,
+  theta: f32,
 }
 
 impl Default for SimParams {
@@ -40,8 +42,10 @@ impl Default for SimParams {
       galaxy_velocity: 0.6,
       halo_velocity: 2.0,
       halo_radius: 2.0,
-      damping: 0.1, 
+      damping: 0.1,
       time: 0.0,
+      // Barnes-Hut opening angle: larger = faster, less accurate.
+      theta: 0.75,
     }
   }
 }
@@ -60,6 +64,8 @@ pub struct RunConfig {
   pub dump_every: u64,
   pub max_steps: u64,
   pub out_dir: String,
+  pub exact: bool,
+  pub theta: Option<f32>,
 }
 
 impl Default for CameraParams {

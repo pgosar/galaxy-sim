@@ -20,6 +20,8 @@ struct SimParams {
     halo_v: f32,
     halo_r: f32,
     damping: f32,
+    time: f32,
+    theta: f32,
 };
 
 @group(0) @binding(0) var<uniform> params: SimParams;
