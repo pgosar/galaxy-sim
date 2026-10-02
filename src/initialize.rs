@@ -18,9 +18,12 @@ pub fn create_galaxies(sim_params: &SimParams) -> Vec<Particle> {
         theta.cos() * sim_params.distance_between_galaxies,
         0.0,
       );
+      // Tangential velocity: galaxies orbit the common center instead of
+      // falling straight in, giving the merger angular momentum for tidal tails.
+      // Sign chosen so the orbit is prograde with the disks' CCW spin.
       velocity = Vector3::new(
-        -(theta.sin() * sim_params.galaxy_velocity),
         -(theta.cos() * sim_params.galaxy_velocity),
+        theta.sin() * sim_params.galaxy_velocity,
         0.0,
       );
     }
