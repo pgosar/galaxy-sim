@@ -182,7 +182,8 @@ impl Render {
           contents: bytemuck::cast_slice(&initial_particle_data),
           usage: wgpu::BufferUsages::VERTEX
             | wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST,
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC,
         }),
       );
     }
@@ -251,6 +252,12 @@ impl Render {
     queue.submit(Some(command_encoder.finish()));
   }
 
+  /// Buffer holding the particle state written by the most recent compute step.
+  #[must_use]
+  pub fn latest_particle_buffer(&self) -> &wgpu::Buffer {
+    &self.particle_buffers[self.frame_num % 2]
+  }
+
   pub fn render(
     &mut self,
     view: &wgpu::TextureView,
@@ -258,13 +265,21 @@ impl Render {
     queue: &wgpu::Queue,
     camera_bind_group: &wgpu::BindGroup,
     sim_params: &SimParams,
+    clear: bool,
   ) {
     self.compute(device, queue, sim_params);
+    // Interactive mode accumulates frames for motion trails; headless
+    // snapshots need a clean frame showing only the current state.
+    let load = if clear {
+      wgpu::LoadOp::Clear(wgpu::Color::BLACK)
+    } else {
+      wgpu::LoadOp::Load
+    };
     let color_attachments = [Some(wgpu::RenderPassColorAttachment {
       view,
       resolve_target: None,
       ops: wgpu::Operations {
-        load: wgpu::LoadOp::Load,
+        load,
         store: wgpu::StoreOp::Store,
       },
     })];

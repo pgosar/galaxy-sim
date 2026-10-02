@@ -51,6 +51,17 @@ pub struct CameraParams {
   pub rotational_speed: f32,
 }
 
+/// Options for a simulation run, from CLI args.
+pub struct RunConfig {
+  pub galaxies: u32,
+  pub headless: bool,
+  pub particles: Option<u32>,
+  pub snapshot_every: u64,
+  pub dump_every: u64,
+  pub max_steps: u64,
+  pub out_dir: String,
+}
+
 impl Default for CameraParams {
   fn default() -> Self {
     Self {

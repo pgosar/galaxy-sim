@@ -12,6 +12,21 @@ struct Args {
   /// Run in headless mode (no window)
   #[arg(long, default_value_t = false)]
   headless: bool,
+  /// Particles per galaxy (overrides default)
+  #[arg(long)]
+  particles: Option<u32>,
+  /// Save a PNG snapshot every N steps in headless mode (0 = off)
+  #[arg(long, default_value_t = 0)]
+  snapshot_every: u64,
+  /// Write a particle CSV every N steps in headless mode (0 = off)
+  #[arg(long, default_value_t = 0)]
+  dump_every: u64,
+  /// Stop headless mode after N steps (0 = run until Ctrl+C)
+  #[arg(long, default_value_t = 0)]
+  max_steps: u64,
+  /// Directory for snapshots and dumps
+  #[arg(long, default_value = "snapshots")]
+  out_dir: String,
   #[command(subcommand)]
   command: Option<Commands>,
 }
@@ -36,5 +51,13 @@ fn main() {
     return;
   }
 
-  galaxy_sim::state::run(args.galaxies, args.headless);
+  galaxy_sim::state::run(galaxy_sim::RunConfig {
+    galaxies: args.galaxies,
+    headless: args.headless,
+    particles: args.particles,
+    snapshot_every: args.snapshot_every,
+    dump_every: args.dump_every,
+    max_steps: args.max_steps,
+    out_dir: args.out_dir,
+  });
 }
