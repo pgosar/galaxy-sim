@@ -33,11 +33,11 @@ impl Default for SimParams {
       particles_per_group: 64,
       triangle_size: 0.002f32,
       num_galaxies: 1,
-      distance_between_galaxies: 0.9, 
-      galaxy_velocity: 0.005,      
+      distance_between_galaxies: 0.9,
+      galaxy_velocity: 0.005,
       halo_velocity: 2.0,
       halo_radius: 2.0,
-      damping: 0.1, 
+      damping: 0.1,
       time: 0.0,
     }
   }
